@@ -1,72 +1,146 @@
-// Function to track the events on platforms like Google Ads, Facebook, TikTok, LinkedIn
-function trackEvent(eventName, sendToPlatform) {
-    if (!eventName || !sendToPlatform) {
-        console.error('Invalid event name or send_to platform ID', eventName, sendToPlatform);
-        return; // Prevent sending invalid data
-    }
+(function () {
+  // 1. Get configuration from script's data attributes
+  function getConfig() {
+    const currentScript = document.currentScript || (function () {
+      const scripts = document.getElementsByTagName('script');
+      return scripts[scripts.length - 1];
+    })();
 
-    // Log the event for debugging purposes
-    console.log(`Tracking event: ${eventName} to ${sendToPlatform}`);
+    return {
+      facebookPixelId: currentScript.getAttribute('data-facebook-pixel-id'),
+      googleAdsId: currentScript.getAttribute('data-google-ads-id'),
+      scroll20ConversionId: currentScript.getAttribute('data-scroll-20-conversion'),
+      scroll50ConversionId: currentScript.getAttribute('data-scroll-50-conversion'),
+      ga4MeasurementId: currentScript.getAttribute('data-ga4-id'),
+      tiktokPixelId: currentScript.getAttribute('data-tiktok-pixel-id'),
+      ctaSelectors: (currentScript.getAttribute('data-cta-selectors') || "").split(',').map(sel => sel.trim())
+    };
+  }
 
-    // Track on Google Ads / GA4 (gtag)
-    if (typeof gtag !== 'undefined') {
-        gtag('event', eventName, { send_to: sendToPlatform });
-    } else {
-        console.error('gtag is not defined');
-    }
+  const CONFIG = getConfig();
+  const tracked = { scroll20: false, scroll50: false, anyClick: false, ctaClick: false };
+  const scrollTracked = { '20': false, '50': false };
 
-    // Track on Facebook Pixel
+  function pixelsReady() {
+    return (
+      typeof fbq !== 'undefined' ||
+      typeof gtag !== 'undefined' ||
+      typeof ttq !== 'undefined'
+    );
+  }
+
+  function getScrollPercent() {
+    const doc = document.documentElement;
+    const scrollTop = window.pageYOffset || doc.scrollTop;
+    const scrollHeight = doc.scrollHeight - doc.clientHeight;
+    return Math.round((scrollTop / scrollHeight) * 100);
+  }
+
+  function sendToAllPlatforms(eventName, data = {}) {
+    // Facebook
     if (typeof fbq !== 'undefined') {
-        fbq('track', eventName);
-    } else {
-        console.error('fbq is not defined');
+      fbq('trackCustom', eventName, data);
     }
 
-    // Track on TikTok Pixel
+    // Google Ads
+    if (typeof gtag !== 'undefined' && CONFIG.googleAdsId) {
+      const conversionId = 
+        eventName === 'scroll_20' ? CONFIG.scroll20ConversionId :
+        eventName === 'scroll_50' ? CONFIG.scroll50ConversionId : null;
+
+      if (conversionId) {
+        gtag('event', 'conversion', { 'send_to': `${CONFIG.googleAdsId}/${conversionId}` });
+      }
+
+      // GA4 generic event
+      if (CONFIG.ga4MeasurementId) {
+        gtag('event', eventName, data);
+      }
+    }
+
+    // TikTok
     if (typeof ttq !== 'undefined') {
-        ttq.track(eventName);
+      ttq.track(eventName, data);
+    }
+  }
+
+  function handleScroll() {
+    const percent = getScrollPercent();
+
+    if (!scrollTracked['20'] && percent >= 20) {
+      sendToAllPlatforms('scroll_20', { percent, url: window.location.href });
+      scrollTracked['20'] = true;
+    }
+
+    if (!scrollTracked['50'] && percent >= 50) {
+      sendToAllPlatforms('scroll_50', { percent, url: window.location.href });
+      scrollTracked['50'] = true;
+    }
+
+    if (scrollTracked['20'] && scrollTracked['50']) {
+      window.removeEventListener('scroll', debounceScroll);
+    }
+  }
+
+  let scrollTimeout = null;
+  function debounceScroll() {
+    if (scrollTimeout) return;
+    scrollTimeout = setTimeout(() => {
+      handleScroll();
+      scrollTimeout = null;
+    }, 200);
+  }
+
+  function handleAnyClick() {
+    if (!tracked.anyClick) {
+      tracked.anyClick = true;
+      sendToAllPlatforms('any_click', { url: window.location.href });
+    }
+  }
+
+  function handleCTA(event) {
+    sendToAllPlatforms('any_cta', {
+      url: window.location.href,
+      selector: event.target?.outerHTML?.slice(0, 100) || ''
+    });
+  }
+
+  function initListeners() {
+    // Scroll tracking
+    window.addEventListener('scroll', debounceScroll, { passive: true });
+    setTimeout(handleScroll, 1000); // for above-the-fold pages
+
+    // Any click tracking
+    document.addEventListener('click', handleAnyClick, { once: true });
+
+    // CTA click tracking
+    CONFIG.ctaSelectors.forEach(selector => {
+      if (!selector) return;
+      const elements = document.querySelectorAll(selector);
+      elements.forEach(el => {
+        el.addEventListener('click', handleCTA);
+      });
+    });
+  }
+
+  function startTracking() {
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      initListeners();
     } else {
-        console.error('ttq is not defined');
+      window.addEventListener('DOMContentLoaded', initListeners);
     }
+  }
 
-    // Track on LinkedIn
-    if (typeof lintrk !== 'undefined') {
-        lintrk('track', eventName);
-    } else {
-        console.error('lintrk is not defined');
-    }
-}
+  function waitForPixels() {
+    let attempts = 0;
+    const interval = setInterval(() => {
+      if (pixelsReady() || attempts >= 20) {
+        clearInterval(interval);
+        startTracking();
+      }
+      attempts++;
+    }, 500);
+  }
 
-// Scroll 20% event tracking
-var scrollThreshold = 0.2;
-var lastScroll = 0;
-
-window.addEventListener('scroll', function () {
-    var scrollPercent = (document.documentElement.scrollTop || document.body.scrollTop) /
-        (document.documentElement.scrollHeight - document.documentElement.clientHeight);
-
-    if (scrollPercent >= scrollThreshold && lastScroll < scrollThreshold) {
-        trackEvent('scroll_20', 'googleAdsConversionId'); // Example platform ID
-        lastScroll = scrollThreshold;
-    }
-});
-
-// Scroll 50% event tracking
-var scrollThreshold50 = 0.5;
-
-window.addEventListener('scroll', function () {
-    var scrollPercent50 = (document.documentElement.scrollTop || document.body.scrollTop) /
-        (document.documentElement.scrollHeight - document.documentElement.clientHeight);
-
-    if (scrollPercent50 >= scrollThreshold50 && lastScroll < scrollThreshold50) {
-        trackEvent('scroll_50', 'googleAdsConversionId'); // Example platform ID
-        lastScroll = scrollThreshold50;
-    }
-});
-
-// Click tracking
-document.body.addEventListener('click', function () {
-    trackEvent('any_click', 'googleAdsConversionId'); // Example platform ID
-});
-
-  
+  waitForPixels();
+})();
