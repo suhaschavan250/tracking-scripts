@@ -1,5 +1,4 @@
 (function () {
-  // 1. Get configuration from script's data attributes
   function getConfig() {
     const currentScript = document.currentScript || (function () {
       const scripts = document.getElementsByTagName('script');
@@ -37,6 +36,8 @@
   }
 
   function sendToAllPlatforms(eventName, data = {}) {
+    console.log(`[Tracking] Event: ${eventName}`, data); // ✅ Logging for debug
+
     // Facebook
     if (typeof fbq !== 'undefined') {
       fbq('trackCustom', eventName, data);
@@ -44,15 +45,14 @@
 
     // Google Ads
     if (typeof gtag !== 'undefined' && CONFIG.googleAdsId) {
-      const conversionId = 
+      const conversionId =
         eventName === 'scroll_20' ? CONFIG.scroll20ConversionId :
         eventName === 'scroll_50' ? CONFIG.scroll50ConversionId : null;
 
       if (conversionId) {
-        gtag('event', 'conversion', { 'send_to': ${CONFIG.googleAdsId}/${conversionId} });
+        gtag('event', 'conversion', { 'send_to': `${CONFIG.googleAdsId}/${conversionId}` }); // ✅ fixed backticks
       }
 
-      // GA4 generic event
       if (CONFIG.ga4MeasurementId) {
         gtag('event', eventName, data);
       }
@@ -99,24 +99,29 @@
   }
 
   function handleCTA(event) {
+    console.log('[CTA Clicked]', event.target); // ✅ Logging
     sendToAllPlatforms('any_cta', {
       url: window.location.href,
-      selector: event.target?.outerHTML?.slice(0, 100) || ''
+      selector: event.target?.outerHTML?.slice(0, 100) || '',
+      text: event.target?.textContent?.trim().slice(0, 50) || ''
     });
   }
 
   function initListeners() {
-    // Scroll tracking
+    // Scroll
     window.addEventListener('scroll', debounceScroll, { passive: true });
-    setTimeout(handleScroll, 1000); // for above-the-fold pages
+    setTimeout(handleScroll, 1000);
 
-    // Any click tracking
+    // Any click
     document.addEventListener('click', handleAnyClick, { once: true });
 
-    // CTA click tracking
+    // CTA clicks
     CONFIG.ctaSelectors.forEach(selector => {
       if (!selector) return;
       const elements = document.querySelectorAll(selector);
+      if (elements.length === 0) {
+        console.warn(`[CTA] No elements matched selector: "${selector}"`);
+      }
       elements.forEach(el => {
         el.addEventListener('click', handleCTA);
       });
@@ -144,3 +149,4 @@
 
   waitForPixels();
 })();
+
