@@ -13,13 +13,12 @@
       scroll50ConversionId: currentScript.getAttribute('data-scroll-50-conversion'),
       ga4MeasurementId: currentScript.getAttribute('data-ga4-id'),
       tiktokPixelId: currentScript.getAttribute('data-tiktok-pixel-id'),
-      ctaSelectors: (currentScript.getAttribute('data-cta-selectors') || "").split(',').map(sel => sel.trim()),
-      ctaTexts: (currentScript.getAttribute('data-cta-texts') || "").split(',').map(text => text.trim().toLowerCase())
+      ctaSelectors: (currentScript.getAttribute('data-cta-selectors') || "").split(',').map(sel => sel.trim())
     };
   }
 
   const CONFIG = getConfig();
-  const tracked = { scroll20: false, scroll50: false, anyClick: false };
+  const tracked = { scroll20: false, scroll50: false, anyClick: false, ctaClick: false };
   const scrollTracked = { '20': false, '50': false };
 
   function pixelsReady() {
@@ -45,15 +44,15 @@
 
     // Google Ads
     if (typeof gtag !== 'undefined' && CONFIG.googleAdsId) {
-      const conversionId =
+      const conversionId = 
         eventName === 'scroll_20' ? CONFIG.scroll20ConversionId :
         eventName === 'scroll_50' ? CONFIG.scroll50ConversionId : null;
 
       if (conversionId) {
-        gtag('event', 'conversion', { 'send_to': `${CONFIG.googleAdsId}/${conversionId}` });
+        gtag('event', 'conversion', { 'send_to': ${CONFIG.googleAdsId}/${conversionId} });
       }
 
-      // GA4
+      // GA4 generic event
       if (CONFIG.ga4MeasurementId) {
         gtag('event', eventName, data);
       }
@@ -102,20 +101,19 @@
   function handleCTA(event) {
     sendToAllPlatforms('any_cta', {
       url: window.location.href,
-      selector: event.target?.outerHTML?.slice(0, 100) || '',
-      text: event.target?.textContent?.trim().slice(0, 50) || ''
+      selector: event.target?.outerHTML?.slice(0, 100) || ''
     });
   }
 
   function initListeners() {
     // Scroll tracking
     window.addEventListener('scroll', debounceScroll, { passive: true });
-    setTimeout(handleScroll, 1000);
+    setTimeout(handleScroll, 1000); // for above-the-fold pages
 
     // Any click tracking
     document.addEventListener('click', handleAnyClick, { once: true });
 
-    // CTA click via CSS selector
+    // CTA click tracking
     CONFIG.ctaSelectors.forEach(selector => {
       if (!selector) return;
       const elements = document.querySelectorAll(selector);
@@ -123,17 +121,6 @@
         el.addEventListener('click', handleCTA);
       });
     });
-
-    // CTA click via button text
-    if (CONFIG.ctaTexts.length) {
-      const possibleTags = document.querySelectorAll('button, a, input[type="submit"], input[type="button"]');
-      possibleTags.forEach(el => {
-        const text = el.textContent?.trim().toLowerCase();
-        if (text && CONFIG.ctaTexts.includes(text)) {
-          el.addEventListener('click', handleCTA);
-        }
-      });
-    }
   }
 
   function startTracking() {
