@@ -12,7 +12,7 @@
       scroll50ConversionId: currentScript.getAttribute('data-scroll-50-conversion'),
       ga4MeasurementId: currentScript.getAttribute('data-ga4-id'),
       tiktokPixelId: currentScript.getAttribute('data-tiktok-pixel-id'),
-      ctaSelectors: (currentScript.getAttribute('data-cta-selectors') || "").split(',').map(sel => sel.trim())
+      ctaTexts: (currentScript.getAttribute('data-cta-texts') || "").split(',').map(text => text.trim())
     };
   }
 
@@ -102,7 +102,6 @@
     console.log('[CTA Clicked]', event.target); // ✅ Logging
     sendToAllPlatforms('any_cta', {
       url: window.location.href,
-      selector: event.target?.outerHTML?.slice(0, 100) || '',
       text: event.target?.textContent?.trim().slice(0, 50) || ''
     });
   }
@@ -115,15 +114,14 @@
     // Any click
     document.addEventListener('click', handleAnyClick, { once: true });
 
-    // CTA clicks
-    CONFIG.ctaSelectors.forEach(selector => {
-      if (!selector) return;
-      const elements = document.querySelectorAll(selector);
-      if (elements.length === 0) {
-        console.warn(`[CTA] No elements matched selector: "${selector}"`);
-      }
+    // CTA clicks - Find elements with specific button text
+    CONFIG.ctaTexts.forEach(text => {
+      if (!text) return;
+      const elements = document.querySelectorAll('button, a'); // Adjust this selector based on the elements you expect
       elements.forEach(el => {
-        el.addEventListener('click', handleCTA);
+        if (el.textContent.trim() === text) {
+          el.addEventListener('click', handleCTA);
+        }
       });
     });
   }
@@ -149,4 +147,5 @@
 
   waitForPixels();
 })();
+
 
