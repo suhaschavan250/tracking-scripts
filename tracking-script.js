@@ -10,6 +10,8 @@
       googleAdsId: currentScript.getAttribute('data-google-ads-id'),
       scroll20ConversionId: currentScript.getAttribute('data-scroll-20-conversion'),
       scroll50ConversionId: currentScript.getAttribute('data-scroll-50-conversion'),
+      anyClickConversionId: currentScript.getAttribute('data-any-click-conversion'),
+      ctaClickConversionId: currentScript.getAttribute('data-cta-click-conversion'),
       ga4MeasurementId: currentScript.getAttribute('data-ga4-id'),
       tiktokPixelId: currentScript.getAttribute('data-tiktok-pixel-id'),
       ctaTexts: (currentScript.getAttribute('data-cta-texts') || "").split(',').map(text => text.trim())
@@ -17,7 +19,6 @@
   }
 
   const CONFIG = getConfig();
-  const tracked = { scroll20: false, scroll50: false, anyClick: false, ctaClick: false };
   const scrollTracked = { '20': false, '50': false };
 
   function pixelsReady() {
@@ -36,7 +37,7 @@
   }
 
   function sendToAllPlatforms(eventName, data = {}) {
-    console.log(`[Tracking] Event: ${eventName}`, data); // ✅ Logging for debug
+    console.log(`[Tracking] Event: ${eventName}`, data);
 
     // Facebook
     if (typeof fbq !== 'undefined') {
@@ -45,12 +46,14 @@
 
     // Google Ads
     if (typeof gtag !== 'undefined' && CONFIG.googleAdsId) {
-      const conversionId =
-        eventName === 'scroll_20' ? CONFIG.scroll20ConversionId :
-        eventName === 'scroll_50' ? CONFIG.scroll50ConversionId : null;
+      let conversionId = null;
+      if (eventName === 'scroll_20') conversionId = CONFIG.scroll20ConversionId;
+      if (eventName === 'scroll_50') conversionId = CONFIG.scroll50ConversionId;
+      if (eventName === 'any_click') conversionId = CONFIG.anyClickConversionId;
+      if (eventName === 'any_cta') conversionId = CONFIG.ctaClickConversionId;
 
       if (conversionId) {
-        gtag('event', 'conversion', { 'send_to': `${CONFIG.googleAdsId}/${conversionId}` }); // ✅ fixed backticks
+        gtag('event', 'conversion', { 'send_to': `${CONFIG.googleAdsId}/${conversionId}` });
       }
 
       if (CONFIG.ga4MeasurementId) {
@@ -92,14 +95,11 @@
   }
 
   function handleAnyClick() {
-    if (!tracked.anyClick) {
-      tracked.anyClick = true;
-      sendToAllPlatforms('any_click', { url: window.location.href });
-    }
+    sendToAllPlatforms('any_click', { url: window.location.href });
   }
 
   function handleCTA(event) {
-    console.log('[CTA Clicked]', event.target); // ✅ Logging
+    console.log('[CTA Clicked]', event.target);
     sendToAllPlatforms('any_cta', {
       url: window.location.href,
       text: event.target?.textContent?.trim().slice(0, 50) || ''
@@ -111,13 +111,13 @@
     window.addEventListener('scroll', debounceScroll, { passive: true });
     setTimeout(handleScroll, 1000);
 
-    // Any click
-    document.addEventListener('click', handleAnyClick, { once: true });
+    // Any click (✅ now firing on every click)
+    document.addEventListener('click', handleAnyClick);
 
-    // CTA clicks - Find elements with specific button text
+    // CTA clicks
     CONFIG.ctaTexts.forEach(text => {
       if (!text) return;
-      const elements = document.querySelectorAll('button, a'); // Adjust this selector based on the elements you expect
+      const elements = document.querySelectorAll('button, a');
       elements.forEach(el => {
         if (el.textContent.trim() === text) {
           el.addEventListener('click', handleCTA);
@@ -148,4 +148,10 @@
   waitForPixels();
 })();
 
-
+  
+    
+    
+  
+      
+    
+  
