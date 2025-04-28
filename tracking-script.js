@@ -23,9 +23,9 @@
 
   function pixelsReady() {
     return (
-      typeof fbq !== 'undefined' ||
-      typeof gtag !== 'undefined' ||
-      typeof ttq !== 'undefined'
+      typeof fbq === 'function' ||
+      typeof gtag === 'function' ||
+      typeof ttq === 'function'
     );
   }
 
@@ -40,12 +40,12 @@
     console.log(`[Tracking] Event: ${eventName}`, data);
 
     // Facebook
-    if (typeof fbq !== 'undefined') {
+    if (typeof fbq === 'function') {
       fbq('trackCustom', eventName, data);
     }
 
     // Google Ads
-    if (typeof gtag !== 'undefined' && CONFIG.googleAdsId) {
+    if (typeof gtag === 'function' && CONFIG.googleAdsId) {
       let conversionId = null;
       if (eventName === 'scroll_20') conversionId = CONFIG.scroll20ConversionId;
       if (eventName === 'scroll_50') conversionId = CONFIG.scroll50ConversionId;
@@ -62,7 +62,7 @@
     }
 
     // TikTok
-    if (typeof ttq !== 'undefined') {
+    if (typeof ttq === 'function') {
       ttq.track(eventName, data);
     }
   }
@@ -111,19 +111,19 @@
     window.addEventListener('scroll', debounceScroll, { passive: true });
     setTimeout(handleScroll, 1000);
 
-    // Any click (✅ now firing on every click)
+    // Any click
     document.addEventListener('click', handleAnyClick);
 
     // CTA clicks
-    CONFIG.ctaTexts.forEach(text => {
-      if (!text) return;
+    if (CONFIG.ctaTexts.length > 0) {
       const elements = document.querySelectorAll('button, a');
       elements.forEach(el => {
-        if (el.textContent.trim() === text) {
+        const text = el.textContent.trim();
+        if (CONFIG.ctaTexts.includes(text)) {
           el.addEventListener('click', handleCTA);
         }
       });
-    });
+    }
   }
 
   function startTracking() {
@@ -137,21 +137,20 @@
   function waitForPixels() {
     let attempts = 0;
     const interval = setInterval(() => {
-      if (pixelsReady() || attempts >= 20) {
+      if (pixelsReady()) {
         clearInterval(interval);
+        console.log('[Tracking] Pixels detected, starting tracking.');
+        startTracking();
+      } else if (attempts++ >= 40) { // 20 seconds
+        clearInterval(interval);
+        console.warn('[Tracking] Pixels not detected after waiting, starting anyway.');
         startTracking();
       }
-      attempts++;
     }, 500);
   }
 
   waitForPixels();
 })();
 
-  
-    
-    
-  
-      
     
   
