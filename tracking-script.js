@@ -1,11 +1,21 @@
 (function () {
   function getConfig() {
-    const currentScript = document.currentScript || (function () {
-      const scripts = document.getElementsByTagName('script');
-      return scripts[scripts.length - 1];
-    })();
+    const scripts = document.getElementsByTagName('script');
+    let currentScript = null;
 
-    return {
+    for (let script of scripts) {
+      if (script.src && script.src.includes('tracking-scripts')) {
+        currentScript = script;
+        break;
+      }
+    }
+
+    if (!currentScript) {
+      console.warn('[Tracking] Config script not found.');
+      return {};
+    }
+
+    const config = {
       facebookPixelId: currentScript.getAttribute('data-facebook-pixel-id'),
       googleAdsId: currentScript.getAttribute('data-google-ads-id'),
       scroll20ConversionId: currentScript.getAttribute('data-scroll-20-conversion'),
@@ -16,13 +26,12 @@
       tiktokPixelId: currentScript.getAttribute('data-tiktok-pixel-id'),
       ctaText: (currentScript.getAttribute('data-cta-text') || "").trim()
     };
+
+    console.log('📦 Config Object:', config);
+    return config;
   }
 
   const CONFIG = getConfig();
-
-  // Log the whole CONFIG object to debug
-  console.log('Config Object:', CONFIG);
-
   const scrollTracked = { '20': false, '50': false };
 
   function pixelsReady() {
@@ -147,17 +156,3 @@
 
   waitForPixels();
 })();
-
- 
-
-  
-
-      
-    
-
-    
-
-   
-        
- 
-
