@@ -14,7 +14,7 @@
       ctaClickConversionId: currentScript.getAttribute('data-cta-click-conversion'),
       ga4MeasurementId: currentScript.getAttribute('data-ga4-id'),
       tiktokPixelId: currentScript.getAttribute('data-tiktok-pixel-id'),
-      ctaTexts: (currentScript.getAttribute('data-cta-texts') || "").split(',').map(text => text.trim()).filter(Boolean)
+      ctaText: (currentScript.getAttribute('data-cta-text') || "").trim() // SINGLE ctaText
     };
   }
 
@@ -39,12 +39,10 @@
   function sendToAllPlatforms(eventName, data = {}) {
     console.log(`[Tracking] Event: ${eventName}`, data);
 
-    // Facebook
     if (typeof fbq === 'function') {
       fbq('trackCustom', eventName, data);
     }
 
-    // Google Ads
     if (typeof gtag === 'function' && CONFIG.googleAdsId) {
       let conversionId = null;
       if (eventName === 'scroll_20') conversionId = CONFIG.scroll20ConversionId;
@@ -61,7 +59,6 @@
       }
     }
 
-    // TikTok
     if (typeof ttq === 'function') {
       ttq.track(eventName, data);
     }
@@ -103,7 +100,7 @@
     while (el && !['BUTTON', 'A'].includes(el.tagName)) {
       el = el.parentElement;
     }
-    if (!el) return; // No valid button or link found
+    if (!el) return;
 
     const clickedText = el.textContent?.trim() || '';
     console.log('[CTA Clicked]', clickedText);
@@ -115,19 +112,16 @@
   }
 
   function initListeners() {
-    // Scroll tracking
     window.addEventListener('scroll', debounceScroll, { passive: true });
     setTimeout(handleScroll, 1000);
 
-    // Any click tracking
     document.addEventListener('click', handleAnyClick);
 
-    // CTA click tracking
-    if (CONFIG.ctaTexts.length > 0) {
+    if (CONFIG.ctaText) {
       const elements = document.querySelectorAll('button, a');
       elements.forEach(el => {
         const text = el.textContent?.trim();
-        if (CONFIG.ctaTexts.includes(text)) {
+        if (text === CONFIG.ctaText) {
           el.addEventListener('click', handleCTA);
         }
       });
@@ -149,7 +143,7 @@
         clearInterval(interval);
         console.log('[Tracking] Pixels detected, starting tracking.');
         startTracking();
-      } else if (attempts++ >= 40) { // 20 seconds
+      } else if (attempts++ >= 40) {
         clearInterval(interval);
         console.warn('[Tracking] Pixels not detected after waiting, starting anyway.');
         startTracking();
@@ -159,6 +153,7 @@
 
   waitForPixels();
 })();
+
 
 
     
