@@ -1,37 +1,32 @@
 (function () {
-  function getConfig() {
-    const scripts = document.getElementsByTagName('script');
-    let currentScript = null;
+  function getConfigFromQuery() {
+    try {
+      const scriptEl = document.currentScript || (function () {
+        const scripts = document.getElementsByTagName('script');
+        return scripts[scripts.length - 1];
+      })();
 
-    for (let script of scripts) {
-      if (script.src && script.src.includes('tracking-scripts')) {
-        currentScript = script;
-        break;
-      }
-    }
+      const url = new URL(scriptEl.src);
+      const params = new URLSearchParams(url.search);
 
-    if (!currentScript) {
-      console.warn('[Tracking] Config script not found.');
+      return {
+        facebookPixelId: params.get('facebookPixelId'),
+        googleAdsId: params.get('googleAdsId'),
+        scroll20ConversionId: params.get('scroll20ConversionId'),
+        scroll50ConversionId: params.get('scroll50ConversionId'),
+        anyClickConversionId: params.get('anyClickConversionId'),
+        ctaClickConversionId: params.get('ctaClickConversionId'),
+        ga4MeasurementId: params.get('ga4Id'),
+        tiktokPixelId: params.get('tiktokPixelId'),
+        ctaText: (params.get('ctaText') || "").trim()
+      };
+    } catch (e) {
+      console.warn('[Tracking] Failed to read config from query params:', e);
       return {};
     }
-
-    const config = {
-      facebookPixelId: currentScript.getAttribute('data-facebook-pixel-id'),
-      googleAdsId: currentScript.getAttribute('data-google-ads-id'),
-      scroll20ConversionId: currentScript.getAttribute('data-scroll-20-conversion'),
-      scroll50ConversionId: currentScript.getAttribute('data-scroll-50-conversion'),
-      anyClickConversionId: currentScript.getAttribute('data-any-click-conversion'),
-      ctaClickConversionId: currentScript.getAttribute('data-cta-click-conversion'),
-      ga4MeasurementId: currentScript.getAttribute('data-ga4-id'),
-      tiktokPixelId: currentScript.getAttribute('data-tiktok-pixel-id'),
-      ctaText: (currentScript.getAttribute('data-cta-text') || "").trim()
-    };
-
-    console.log('📦 Config Object:', config);
-    return config;
   }
 
-  const CONFIG = getConfig();
+  const CONFIG = getConfigFromQuery();
   const scrollTracked = { '20': false, '50': false };
 
   function pixelsReady() {
@@ -104,15 +99,18 @@
     }, 200);
   }
 
-  function handleAnyClick(event) {
+  function handleAnyClick() {
     sendToAllPlatforms('any_click', { url: window.location.href });
+  }
 
+  function handleCTA(event) {
     if (!CONFIG.ctaText) return;
 
     let el = event.target;
+
     while (el && el !== document.body) {
       const text = el.textContent?.trim();
-      if (text && text.toLowerCase() === CONFIG.ctaText.toLowerCase()) {
+      if (text === CONFIG.ctaText) {
         console.log('[CTA Clicked]', text);
         sendToAllPlatforms('any_cta', {
           url: window.location.href,
@@ -129,6 +127,10 @@
     setTimeout(handleScroll, 1000);
 
     document.addEventListener('click', handleAnyClick);
+
+    if (CONFIG.ctaText) {
+      document.addEventListener('click', handleCTA);
+    }
   }
 
   function startTracking() {
