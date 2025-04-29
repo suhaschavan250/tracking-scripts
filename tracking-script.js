@@ -141,15 +141,10 @@
     }, 500);
   }
 
+  console.log('CTA Text:', CONFIG.ctaText);  // Log CTA text to console for debugging
+
   waitForPixels();
 })();
-
-
-  
-    
-      
-     
-    
 
  
 
