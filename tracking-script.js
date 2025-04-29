@@ -92,8 +92,7 @@
   }
 
   function handleAnyClick(event) {
-    const url = window.location.href;
-    sendToAllPlatforms('any_click', { url });
+    sendToAllPlatforms('any_click', { url: window.location.href });
 
     if (!CONFIG.ctaText) return;
 
@@ -103,7 +102,7 @@
       if (text && text.toLowerCase() === CONFIG.ctaText.toLowerCase()) {
         console.log('[CTA Clicked]', text);
         sendToAllPlatforms('any_cta', {
-          url,
+          url: window.location.href,
           text: text.slice(0, 50)
         });
         break;
@@ -147,3 +146,10 @@
 
 
   
+    
+      
+     
+    
+
+ 
+
