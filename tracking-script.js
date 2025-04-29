@@ -18,7 +18,7 @@
         ctaClickConversionId: params.get('ctaClickConversionId'),
         ga4MeasurementId: params.get('ga4Id'),
         tiktokPixelId: params.get('tiktokPixelId'),
-        ctaText: (params.get('ctaText') || "").trim()
+        ctaClass: (params.get('ctaClass') || "").trim()
       };
     } catch (e) {
       console.warn('[Tracking] Failed to read config from query params:', e);
@@ -104,17 +104,15 @@
   }
 
   function handleCTA(event) {
-    if (!CONFIG.ctaText) return;
+    if (!CONFIG.ctaClass) return;
 
     let el = event.target;
-
     while (el && el !== document.body) {
-      const text = el.textContent?.trim();
-      if (text === CONFIG.ctaText) {
-        console.log('[CTA Clicked]', text);
+      if (el.classList?.contains(CONFIG.ctaClass)) {
+        console.log('[CTA Clicked by Class]', el);
         sendToAllPlatforms('any_cta', {
           url: window.location.href,
-          text: text.slice(0, 50)
+          class: CONFIG.ctaClass
         });
         break;
       }
@@ -128,7 +126,7 @@
 
     document.addEventListener('click', handleAnyClick);
 
-    if (CONFIG.ctaText) {
+    if (CONFIG.ctaClass) {
       document.addEventListener('click', handleCTA);
     }
   }
@@ -158,5 +156,6 @@
 
   waitForPixels();
 })();
+
 
 
