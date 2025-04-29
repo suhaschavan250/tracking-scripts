@@ -91,21 +91,19 @@
     }, 200);
   }
 
-  function handleAnyClick() {
-    sendToAllPlatforms('any_click', { url: window.location.href });
-  }
+  function handleAnyClick(event) {
+    const url = window.location.href;
+    sendToAllPlatforms('any_click', { url });
 
-  function handleCTA(event) {
     if (!CONFIG.ctaText) return;
 
     let el = event.target;
-
     while (el && el !== document.body) {
       const text = el.textContent?.trim();
-      if (text === CONFIG.ctaText) {
+      if (text && text.toLowerCase() === CONFIG.ctaText.toLowerCase()) {
         console.log('[CTA Clicked]', text);
         sendToAllPlatforms('any_cta', {
-          url: window.location.href,
+          url,
           text: text.slice(0, 50)
         });
         break;
@@ -119,10 +117,6 @@
     setTimeout(handleScroll, 1000);
 
     document.addEventListener('click', handleAnyClick);
-
-    if (CONFIG.ctaText) {
-      document.addEventListener('click', handleCTA);
-    }
   }
 
   function startTracking() {
@@ -152,9 +146,4 @@
 })();
 
 
-
-  
-
-
-    
   
