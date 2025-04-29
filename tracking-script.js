@@ -14,7 +14,7 @@
       ctaClickConversionId: currentScript.getAttribute('data-cta-click-conversion'),
       ga4MeasurementId: currentScript.getAttribute('data-ga4-id'),
       tiktokPixelId: currentScript.getAttribute('data-tiktok-pixel-id'),
-      ctaText: (currentScript.getAttribute('data-cta-text') || "").trim() // SINGLE ctaText
+      ctaText: (currentScript.getAttribute('data-cta-text') || "").trim()
     };
   }
 
@@ -96,19 +96,22 @@
   }
 
   function handleCTA(event) {
+    if (!CONFIG.ctaText) return;
+
     let el = event.target;
-    while (el && !['BUTTON', 'A'].includes(el.tagName)) {
+
+    while (el && el !== document.body) {
+      const text = el.textContent?.trim();
+      if (text === CONFIG.ctaText) {
+        console.log('[CTA Clicked]', text);
+        sendToAllPlatforms('any_cta', {
+          url: window.location.href,
+          text: text.slice(0, 50)
+        });
+        break;
+      }
       el = el.parentElement;
     }
-    if (!el) return;
-
-    const clickedText = el.textContent?.trim() || '';
-    console.log('[CTA Clicked]', clickedText);
-
-    sendToAllPlatforms('any_cta', {
-      url: window.location.href,
-      text: clickedText.slice(0, 50)
-    });
   }
 
   function initListeners() {
@@ -118,13 +121,7 @@
     document.addEventListener('click', handleAnyClick);
 
     if (CONFIG.ctaText) {
-      const elements = document.querySelectorAll('button, a');
-      elements.forEach(el => {
-        const text = el.textContent?.trim();
-        if (text === CONFIG.ctaText) {
-          el.addEventListener('click', handleCTA);
-        }
-      });
+      document.addEventListener('click', handleCTA);
     }
   }
 
@@ -154,6 +151,9 @@
   waitForPixels();
 })();
 
+
+
+  
 
 
     
