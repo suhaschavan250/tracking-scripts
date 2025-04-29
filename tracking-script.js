@@ -19,6 +19,10 @@
   }
 
   const CONFIG = getConfig();
+
+  // Log the whole CONFIG object to debug
+  console.log('Config Object:', CONFIG);
+
   const scrollTracked = { '20': false, '50': false };
 
   function pixelsReady() {
@@ -141,10 +145,19 @@
     }, 500);
   }
 
-  console.log('CTA Text:', CONFIG.ctaText);  // Log CTA text to console for debugging
-
   waitForPixels();
 })();
 
+ 
+
+  
+
+      
+    
+
+    
+
+   
+        
  
 
