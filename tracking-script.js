@@ -1,32 +1,24 @@
 (function () {
-  function getConfigFromQuery() {
-    try {
-      const scriptEl = document.currentScript || (function () {
-        const scripts = document.getElementsByTagName('script');
-        return scripts[scripts.length - 1];
-      })();
+  function getConfig() {
+    const currentScript = document.currentScript || (function () {
+      const scripts = document.getElementsByTagName('script');
+      return scripts[scripts.length - 1];
+    })();
 
-      const url = new URL(scriptEl.src);
-      const params = new URLSearchParams(url.search);
-
-      return {
-        facebookPixelId: params.get('facebookPixelId'),
-        googleAdsId: params.get('googleAdsId'),
-        scroll20ConversionId: params.get('scroll20ConversionId'),
-        scroll50ConversionId: params.get('scroll50ConversionId'),
-        anyClickConversionId: params.get('anyClickConversionId'),
-        ctaClickConversionId: params.get('ctaClickConversionId'),
-        ga4MeasurementId: params.get('ga4Id'),
-        tiktokPixelId: params.get('tiktokPixelId'),
-        ctaDataId: (params.get('ctaDataId') || "").trim()
-      };
-    } catch (e) {
-      console.warn('[Tracking] Failed to read config from query params:', e);
-      return {};
-    }
+    return {
+      facebookPixelId: currentScript.getAttribute('data-facebook-pixel-id'),
+      googleAdsId: currentScript.getAttribute('data-google-ads-id'),
+      scroll20ConversionId: currentScript.getAttribute('data-scroll-20-conversion'),
+      scroll50ConversionId: currentScript.getAttribute('data-scroll-50-conversion'),
+      anyClickConversionId: currentScript.getAttribute('data-any-click-conversion'),
+      ctaClickConversionId: currentScript.getAttribute('data-cta-click-conversion'),
+      ga4MeasurementId: currentScript.getAttribute('data-ga4-id'),
+      tiktokPixelId: currentScript.getAttribute('data-tiktok-pixel-id'),
+      ctaText: (currentScript.getAttribute('data-cta-text') || "").trim()
+    };
   }
 
-  const CONFIG = getConfigFromQuery();
+  const CONFIG = getConfig();
   const scrollTracked = { '20': false, '50': false };
 
   function pixelsReady() {
@@ -104,15 +96,17 @@
   }
 
   function handleCTA(event) {
-    if (!CONFIG.ctaDataId) return;
+    if (!CONFIG.ctaText) return;
 
     let el = event.target;
+
     while (el && el !== document.body) {
-      if (el.hasAttribute('data-id') && el.getAttribute('data-id') === CONFIG.ctaDataId) {
-        console.log('[CTA Clicked by data-id]', el);
+      const text = el.textContent?.trim();
+      if (text === CONFIG.ctaText) {
+        console.log('[CTA Clicked]', text);
         sendToAllPlatforms('any_cta', {
           url: window.location.href,
-          dataId: CONFIG.ctaDataId
+          text: text.slice(0, 50)
         });
         break;
       }
@@ -126,7 +120,7 @@
 
     document.addEventListener('click', handleAnyClick);
 
-    if (CONFIG.ctaDataId) {
+    if (CONFIG.ctaText) {
       document.addEventListener('click', handleCTA);
     }
   }
