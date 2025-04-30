@@ -93,40 +93,27 @@
 
   function handleAnyClick(event) {
     const clickedText = event.target.textContent?.trim().slice(0, 100) || '';
+
+    // Always send any_click
     sendToAllPlatforms('any_click', {
       url: window.location.href,
       text: clickedText
     });
-  }
 
-  function handleCTA(event) {
-    if (!CONFIG.ctaText) return;
-
-    let el = event.target;
-
-    while (el && el !== document.body) {
-      const text = el.textContent?.trim();
-      if (text === CONFIG.ctaText) {
-        console.log('[CTA Clicked]', text);
-        sendToAllPlatforms('any_cta', {
-          url: window.location.href,
-          text: text.slice(0, 50)
-        });
-        break;
-      }
-      el = el.parentElement;
+    // If CTA text matches, also send any_cta
+    if (CONFIG.ctaText && clickedText === CONFIG.ctaText) {
+      console.log('[CTA Clicked via any_click]', clickedText);
+      sendToAllPlatforms('any_cta', {
+        url: window.location.href,
+        text: clickedText.slice(0, 50)
+      });
     }
   }
 
   function initListeners() {
     window.addEventListener('scroll', debounceScroll, { passive: true });
     setTimeout(handleScroll, 1000);
-
     document.addEventListener('click', handleAnyClick);
-
-    if (CONFIG.ctaText) {
-      document.addEventListener('click', handleCTA);
-    }
   }
 
   function startTracking() {
