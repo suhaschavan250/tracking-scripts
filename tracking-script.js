@@ -21,6 +21,15 @@
   const CONFIG = getConfig();
   const scrollTracked = { '20': false, '50': false };
 
+  function normalizeText(text) {
+    return (text || "")
+      .replace(/\u2018|\u2019|\u201A|\u201B/g, "'")  // curly single quotes → straight
+      .replace(/\u201C|\u201D|\u201E|\u201F/g, '"')  // curly double quotes → straight
+      .replace(/\s+/g, ' ')                         // collapse whitespace
+      .trim()
+      .toLowerCase();                               // optional: case-insensitive
+  }
+
   function pixelsReady() {
     return (
       typeof fbq === 'function' ||
@@ -92,28 +101,52 @@
   }
 
   function handleAnyClick(event) {
-    const clickedText = event.target.textContent?.trim().slice(0, 100) || '';
+    const rawClickedText = event.target.textContent || '';
+    const clickedText = normalizeText(rawClickedText);
+    const expectedCTA = normalizeText(CONFIG.ctaText);
 
-    // Always send any_click
     sendToAllPlatforms('any_click', {
       url: window.location.href,
-      text: clickedText
+      text: rawClickedText.slice(0, 100)
     });
 
-    // If CTA text matches, also send any_cta
-    if (CONFIG.ctaText && clickedText === CONFIG.ctaText) {
-      console.log('[CTA Clicked via any_click]', clickedText);
+    if (expectedCTA && clickedText === expectedCTA) {
+      console.log('[CTA Clicked via any_click]', rawClickedText);
       sendToAllPlatforms('any_cta', {
         url: window.location.href,
-        text: clickedText.slice(0, 50)
+        text: rawClickedText.slice(0, 50)
       });
+    }
+  }
+
+  function handleExplicitCTA(event) {
+    if (!CONFIG.ctaText) return;
+
+    let el = event.target;
+
+    while (el && el !== document.body) {
+      const text = el.textContent?.trim();
+      if (normalizeText(text) === normalizeText(CONFIG.ctaText)) {
+        console.log('[CTA Clicked via traversal]', text);
+        sendToAllPlatforms('any_cta', {
+          url: window.location.href,
+          text: text.slice(0, 50)
+        });
+        break;
+      }
+      el = el.parentElement;
     }
   }
 
   function initListeners() {
     window.addEventListener('scroll', debounceScroll, { passive: true });
     setTimeout(handleScroll, 1000);
+
     document.addEventListener('click', handleAnyClick);
+
+    if (CONFIG.ctaText) {
+      document.addEventListener('click', handleExplicitCTA);
+    }
   }
 
   function startTracking() {
