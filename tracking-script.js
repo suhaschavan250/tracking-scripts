@@ -91,8 +91,12 @@
     }, 200);
   }
 
-  function handleAnyClick() {
-    sendToAllPlatforms('any_click', { url: window.location.href });
+  function handleAnyClick(event) {
+    const clickedText = event.target.textContent?.trim().slice(0, 100) || '';
+    sendToAllPlatforms('any_click', {
+      url: window.location.href,
+      text: clickedText
+    });
   }
 
   function handleCTA(event) {
