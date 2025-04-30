@@ -1,23 +1,32 @@
+
 (function () {
   function getConfig() {
-    const currentScript = document.currentScript || (function () {
-      const scripts = document.getElementsByTagName('script');
-      return scripts[scripts.length - 1];
-    })();
+    let script = document.currentScript;
+
+    // Fallback: find by matching 'tracking-scripts' in src
+    if (!script || !script.src.includes('tracking-scripts')) {
+      const scripts = document.querySelectorAll('script');
+      script = Array.from(scripts).find(s => s.src && s.src.includes('tracking-scripts'));
+    }
+
+    if (!script) {
+      console.warn('[Tracking] Script not found.');
+      return {};
+    }
 
     const config = {
-      facebookPixelId: currentScript.getAttribute('data-facebook-pixel-id'),
-      googleAdsId: currentScript.getAttribute('data-google-ads-id'),
-      scroll20ConversionId: currentScript.getAttribute('data-scroll-20-conversion'),
-      scroll50ConversionId: currentScript.getAttribute('data-scroll-50-conversion'),
-      anyClickConversionId: currentScript.getAttribute('data-any-click-conversion'),
-      ctaClickConversionId: currentScript.getAttribute('data-cta-click-conversion'),
-      ga4MeasurementId: currentScript.getAttribute('data-ga4-id'),
-      tiktokPixelId: currentScript.getAttribute('data-tiktok-pixel-id'),
-      ctaText: (currentScript.getAttribute('data-cta-text') || "").trim()
+      facebookPixelId: script.getAttribute('data-facebook-pixel-id'),
+      googleAdsId: script.getAttribute('data-google-ads-id'),
+      scroll20ConversionId: script.getAttribute('data-scroll-20-conversion'),
+      scroll50ConversionId: script.getAttribute('data-scroll-50-conversion'),
+      anyClickConversionId: script.getAttribute('data-any-click-conversion'),
+      ctaClickConversionId: script.getAttribute('data-cta-click-conversion'),
+      ga4MeasurementId: script.getAttribute('data-ga4-id'),
+      tiktokPixelId: script.getAttribute('data-tiktok-pixel-id'),
+      ctaText: (script.getAttribute('data-cta-text') || "").trim()
     };
 
-    console.log('[Tracking] Config:', config);  // Log all parameters
+    console.log('[Tracking] Config:', config);
     return config;
   }
 
