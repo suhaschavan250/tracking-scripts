@@ -21,21 +21,17 @@
   const CONFIG = getConfig();
   const scrollTracked = { '20': false, '50': false };
 
-  function normalizeText(text) {
+  function normalize(text) {
     return (text || "")
-      .replace(/\u2018|\u2019|\u201A|\u201B/g, "'")  // curly single quotes → straight
-      .replace(/\u201C|\u201D|\u201E|\u201F/g, '"')  // curly double quotes → straight
-      .replace(/\s+/g, ' ')                         // collapse whitespace
+      .replace(/\u2018|\u2019|\u201A|\u201B/g, "'") // curly single quotes → '
+      .replace(/\u201C|\u201D|\u201E|\u201F/g, '"') // curly double quotes → "
+      .replace(/\s+/g, ' ') // collapse multiple spaces
       .trim()
-      .toLowerCase();                               // case-insensitive match
+      .toLowerCase();
   }
 
   function pixelsReady() {
-    return (
-      typeof fbq === 'function' ||
-      typeof gtag === 'function' ||
-      typeof ttq === 'function'
-    );
+    return typeof fbq === 'function' || typeof gtag === 'function' || typeof ttq === 'function';
   }
 
   function getScrollPercent() {
@@ -52,15 +48,15 @@
       fbq('trackCustom', eventName, data);
     }
 
-    if (typeof gtag === 'function' && CONFIG.googleAdsId) {
+    if (typeof gtag === 'function') {
       let conversionId = null;
       if (eventName === 'scroll_20') conversionId = CONFIG.scroll20ConversionId;
       if (eventName === 'scroll_50') conversionId = CONFIG.scroll50ConversionId;
       if (eventName === 'any_click') conversionId = CONFIG.anyClickConversionId;
       if (eventName === 'any_cta') conversionId = CONFIG.ctaClickConversionId;
 
-      if (conversionId) {
-        gtag('event', 'conversion', { 'send_to': `${CONFIG.googleAdsId}/${conversionId}` });
+      if (conversionId && CONFIG.googleAdsId) {
+        gtag('event', 'conversion', { send_to: `${CONFIG.googleAdsId}/${conversionId}` });
       }
 
       if (CONFIG.ga4MeasurementId) {
@@ -75,14 +71,15 @@
 
   function handleScroll() {
     const percent = getScrollPercent();
+    const url = window.location.href;
 
     if (!scrollTracked['20'] && percent >= 20) {
-      sendToAllPlatforms('scroll_20', { percent, url: window.location.href });
+      sendToAllPlatforms('scroll_20', { percent, url });
       scrollTracked['20'] = true;
     }
 
     if (!scrollTracked['50'] && percent >= 50) {
-      sendToAllPlatforms('scroll_50', { percent, url: window.location.href });
+      sendToAllPlatforms('scroll_50', { percent, url });
       scrollTracked['50'] = true;
     }
 
@@ -100,33 +97,24 @@
     }, 200);
   }
 
-  function handleAnyClick(event) {
-    const originalUrl = window.location.href;
-    const expectedCTA = normalizeText(CONFIG.ctaText);
-
-    let el = event.target;
-    let matchedText = "";
-
-    // Traverse up the DOM tree to find an element with text matching ctaText
-    while (el && el !== document.body) {
-      const text = normalizeText(el.textContent || '');
-      if (text === expectedCTA) {
-        matchedText = el.textContent.trim();
-        break;
-      }
-      el = el.parentElement;
-    }
-
+  function handleClick(event) {
     const clickedText = (event.target.textContent || '').trim();
+    const url = window.location.href;
+
+    // Always send any_click
     sendToAllPlatforms('any_click', {
-      url: originalUrl,
+      url,
       text: clickedText.slice(0, 100)
     });
 
-    if (matchedText) {
+    // Check if clicked text is close enough to ctaText
+    const clickedNormalized = normalize(clickedText);
+    const expected = normalize(CONFIG.ctaText);
+
+    if (clickedNormalized === expected) {
       sendToAllPlatforms('any_cta', {
-        url: originalUrl,
-        text: matchedText.slice(0, 50)
+        url,
+        text: clickedText.slice(0, 50)
       });
     }
   }
@@ -134,8 +122,7 @@
   function initListeners() {
     window.addEventListener('scroll', debounceScroll, { passive: true });
     setTimeout(handleScroll, 1000);
-
-    document.addEventListener('click', handleAnyClick);
+    document.addEventListener('click', handleClick);
   }
 
   function startTracking() {
@@ -147,15 +134,13 @@
   }
 
   function waitForPixels() {
-    let attempts = 0;
+    let tries = 0;
     const interval = setInterval(() => {
       if (pixelsReady()) {
         clearInterval(interval);
-        console.log('[Tracking] Pixels detected, starting tracking.');
         startTracking();
-      } else if (attempts++ >= 40) {
+      } else if (++tries >= 40) {
         clearInterval(interval);
-        console.warn('[Tracking] Pixels not detected after waiting, starting anyway.');
         startTracking();
       }
     }, 500);
