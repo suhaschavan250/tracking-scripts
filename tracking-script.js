@@ -1,3 +1,4 @@
+
 (function () {
   function getConfig() {
     const currentScript = document.currentScript || (function () {
@@ -21,17 +22,12 @@
   const CONFIG = getConfig();
   const scrollTracked = { '20': false, '50': false };
 
-  function normalize(text) {
-    return (text || "")
-      .replace(/\u2018|\u2019|\u201A|\u201B/g, "'") // curly single quotes → '
-      .replace(/\u201C|\u201D|\u201E|\u201F/g, '"') // curly double quotes → "
-      .replace(/\s+/g, ' ') // collapse multiple spaces
-      .trim()
-      .toLowerCase();
-  }
-
   function pixelsReady() {
-    return typeof fbq === 'function' || typeof gtag === 'function' || typeof ttq === 'function';
+    return (
+      typeof fbq === 'function' ||
+      typeof gtag === 'function' ||
+      typeof ttq === 'function'
+    );
   }
 
   function getScrollPercent() {
@@ -48,15 +44,15 @@
       fbq('trackCustom', eventName, data);
     }
 
-    if (typeof gtag === 'function') {
+    if (typeof gtag === 'function' && CONFIG.googleAdsId) {
       let conversionId = null;
       if (eventName === 'scroll_20') conversionId = CONFIG.scroll20ConversionId;
       if (eventName === 'scroll_50') conversionId = CONFIG.scroll50ConversionId;
       if (eventName === 'any_click') conversionId = CONFIG.anyClickConversionId;
       if (eventName === 'any_cta') conversionId = CONFIG.ctaClickConversionId;
 
-      if (conversionId && CONFIG.googleAdsId) {
-        gtag('event', 'conversion', { send_to: `${CONFIG.googleAdsId}/${conversionId}` });
+      if (conversionId) {
+        gtag('event', 'conversion', { 'send_to': `${CONFIG.googleAdsId}/${conversionId}` });
       }
 
       if (CONFIG.ga4MeasurementId) {
@@ -71,15 +67,14 @@
 
   function handleScroll() {
     const percent = getScrollPercent();
-    const url = window.location.href;
 
     if (!scrollTracked['20'] && percent >= 20) {
-      sendToAllPlatforms('scroll_20', { percent, url });
+      sendToAllPlatforms('scroll_20', { percent, url: window.location.href });
       scrollTracked['20'] = true;
     }
 
     if (!scrollTracked['50'] && percent >= 50) {
-      sendToAllPlatforms('scroll_50', { percent, url });
+      sendToAllPlatforms('scroll_50', { percent, url: window.location.href });
       scrollTracked['50'] = true;
     }
 
@@ -97,20 +92,29 @@
     }, 200);
   }
 
+  function normalize(str) {
+    return (str || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  }
+
   function handleClick(event) {
     const clickedText = (event.target.textContent || '').trim();
     const url = window.location.href;
 
-    // Always send any_click
+    const clickedNormalized = normalize(clickedText);
+    const expected = normalize(CONFIG.ctaText);
+
+    // Log for debug
+    console.log('[Tracking] Clicked Text:', `"${clickedText}"`);
+    console.log('[Tracking] CTA Text:', `"${CONFIG.ctaText}"`);
+    console.log('[Tracking] Normalized Match:', clickedNormalized === expected);
+
+    // Send any_click event
     sendToAllPlatforms('any_click', {
       url,
       text: clickedText.slice(0, 100)
     });
 
-    // Check if clicked text is close enough to ctaText
-    const clickedNormalized = normalize(clickedText);
-    const expected = normalize(CONFIG.ctaText);
-
+    // If it matches CTA, also send cta_click
     if (clickedNormalized === expected) {
       sendToAllPlatforms('any_cta', {
         url,
@@ -122,6 +126,7 @@
   function initListeners() {
     window.addEventListener('scroll', debounceScroll, { passive: true });
     setTimeout(handleScroll, 1000);
+
     document.addEventListener('click', handleClick);
   }
 
@@ -134,13 +139,15 @@
   }
 
   function waitForPixels() {
-    let tries = 0;
+    let attempts = 0;
     const interval = setInterval(() => {
       if (pixelsReady()) {
         clearInterval(interval);
+        console.log('[Tracking] Pixels detected, starting tracking.');
         startTracking();
-      } else if (++tries >= 40) {
+      } else if (attempts++ >= 40) {
         clearInterval(interval);
+        console.warn('[Tracking] Pixels not detected after waiting, starting anyway.');
         startTracking();
       }
     }, 500);
