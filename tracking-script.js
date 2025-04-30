@@ -27,7 +27,7 @@
       .replace(/\u201C|\u201D|\u201E|\u201F/g, '"')  // curly double quotes → straight
       .replace(/\s+/g, ' ')                         // collapse whitespace
       .trim()
-      .toLowerCase();                               // optional: case-insensitive
+      .toLowerCase();                               // case-insensitive match
   }
 
   function pixelsReady() {
@@ -101,40 +101,33 @@
   }
 
   function handleAnyClick(event) {
-    const rawClickedText = event.target.textContent || '';
-    const clickedText = normalizeText(rawClickedText);
+    const originalUrl = window.location.href;
     const expectedCTA = normalizeText(CONFIG.ctaText);
 
-    sendToAllPlatforms('any_click', {
-      url: window.location.href,
-      text: rawClickedText.slice(0, 100)
-    });
-
-    if (expectedCTA && clickedText === expectedCTA) {
-      console.log('[CTA Clicked via any_click]', rawClickedText);
-      sendToAllPlatforms('any_cta', {
-        url: window.location.href,
-        text: rawClickedText.slice(0, 50)
-      });
-    }
-  }
-
-  function handleExplicitCTA(event) {
-    if (!CONFIG.ctaText) return;
-
     let el = event.target;
+    let matchedText = "";
 
+    // Traverse up the DOM tree to find an element with text matching ctaText
     while (el && el !== document.body) {
-      const text = el.textContent?.trim();
-      if (normalizeText(text) === normalizeText(CONFIG.ctaText)) {
-        console.log('[CTA Clicked via traversal]', text);
-        sendToAllPlatforms('any_cta', {
-          url: window.location.href,
-          text: text.slice(0, 50)
-        });
+      const text = normalizeText(el.textContent || '');
+      if (text === expectedCTA) {
+        matchedText = el.textContent.trim();
         break;
       }
       el = el.parentElement;
+    }
+
+    const clickedText = (event.target.textContent || '').trim();
+    sendToAllPlatforms('any_click', {
+      url: originalUrl,
+      text: clickedText.slice(0, 100)
+    });
+
+    if (matchedText) {
+      sendToAllPlatforms('any_cta', {
+        url: originalUrl,
+        text: matchedText.slice(0, 50)
+      });
     }
   }
 
@@ -143,10 +136,6 @@
     setTimeout(handleScroll, 1000);
 
     document.addEventListener('click', handleAnyClick);
-
-    if (CONFIG.ctaText) {
-      document.addEventListener('click', handleExplicitCTA);
-    }
   }
 
   function startTracking() {
