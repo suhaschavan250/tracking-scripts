@@ -1,4 +1,3 @@
-
 (function () {
   function getConfig() {
     const currentScript = document.currentScript || (function () {
@@ -6,7 +5,7 @@
       return scripts[scripts.length - 1];
     })();
 
-    return {
+    const config = {
       facebookPixelId: currentScript.getAttribute('data-facebook-pixel-id'),
       googleAdsId: currentScript.getAttribute('data-google-ads-id'),
       scroll20ConversionId: currentScript.getAttribute('data-scroll-20-conversion'),
@@ -17,6 +16,9 @@
       tiktokPixelId: currentScript.getAttribute('data-tiktok-pixel-id'),
       ctaText: (currentScript.getAttribute('data-cta-text') || "").trim()
     };
+
+    console.log('[Tracking] Config:', config);  // Log all parameters
+    return config;
   }
 
   const CONFIG = getConfig();
@@ -103,18 +105,15 @@
     const clickedNormalized = normalize(clickedText);
     const expected = normalize(CONFIG.ctaText);
 
-    // Log for debug
     console.log('[Tracking] Clicked Text:', `"${clickedText}"`);
     console.log('[Tracking] CTA Text:', `"${CONFIG.ctaText}"`);
     console.log('[Tracking] Normalized Match:', clickedNormalized === expected);
 
-    // Send any_click event
     sendToAllPlatforms('any_click', {
       url,
       text: clickedText.slice(0, 100)
     });
 
-    // If it matches CTA, also send cta_click
     if (clickedNormalized === expected) {
       sendToAllPlatforms('any_cta', {
         url,
