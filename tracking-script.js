@@ -1,36 +1,34 @@
-
 (function () {
-  function getConfig() {
-    let script = document.currentScript;
+  function getConfigFromQuery() {
+    const scripts = document.querySelectorAll('script');
+    const trackingScript = Array.from(scripts).find(s => s.src && s.src.includes('tracking-scripts'));
 
-    // Fallback: find by matching 'tracking-scripts' in src
-    if (!script || !script.src.includes('tracking-scripts')) {
-      const scripts = document.querySelectorAll('script');
-      script = Array.from(scripts).find(s => s.src && s.src.includes('tracking-scripts'));
-    }
-
-    if (!script) {
-      console.warn('[Tracking] Script not found.');
+    if (!trackingScript || !trackingScript.src.includes('?')) {
+      console.warn('[Tracking] Tracking script not found or missing query params.');
       return {};
     }
 
+    const src = trackingScript.src;
+    const queryString = src.substring(src.indexOf('?') + 1);
+    const params = new URLSearchParams(queryString);
+
     const config = {
-      facebookPixelId: script.getAttribute('data-facebook-pixel-id'),
-      googleAdsId: script.getAttribute('data-google-ads-id'),
-      scroll20ConversionId: script.getAttribute('data-scroll-20-conversion'),
-      scroll50ConversionId: script.getAttribute('data-scroll-50-conversion'),
-      anyClickConversionId: script.getAttribute('data-any-click-conversion'),
-      ctaClickConversionId: script.getAttribute('data-cta-click-conversion'),
-      ga4MeasurementId: script.getAttribute('data-ga4-id'),
-      tiktokPixelId: script.getAttribute('data-tiktok-pixel-id'),
-      ctaText: (script.getAttribute('data-cta-text') || "").trim()
+      facebookPixelId: params.get('facebookPixelId'),
+      googleAdsId: params.get('googleAdsId'),
+      scroll20ConversionId: params.get('scroll20ConversionId'),
+      scroll50ConversionId: params.get('scroll50ConversionId'),
+      anyClickConversionId: params.get('anyClickConversionId'),
+      ctaClickConversionId: params.get('ctaClickConversionId'),
+      ga4MeasurementId: params.get('ga4MeasurementId'),
+      tiktokPixelId: params.get('tiktokPixelId'),
+      ctaText: (params.get('ctaText') || "").trim()
     };
 
-    console.log('[Tracking] Config:', config);
+    console.log('[Tracking] Config from query:', config);
     return config;
   }
 
-  const CONFIG = getConfig();
+  const CONFIG = getConfigFromQuery();
   const scrollTracked = { '20': false, '50': false };
 
   function pixelsReady() {
@@ -51,7 +49,7 @@
   function sendToAllPlatforms(eventName, data = {}) {
     console.log(`[Tracking] Event: ${eventName}`, data);
 
-    if (typeof fbq === 'function') {
+    if (typeof fbq === 'function' && CONFIG.facebookPixelId) {
       fbq('trackCustom', eventName, data);
     }
 
@@ -71,7 +69,7 @@
       }
     }
 
-    if (typeof ttq === 'function') {
+    if (typeof ttq === 'function' && CONFIG.tiktokPixelId) {
       ttq.track(eventName, data);
     }
   }
