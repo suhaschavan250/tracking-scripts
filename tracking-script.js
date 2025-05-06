@@ -28,6 +28,7 @@
 
   const CONFIG = getConfigFromQuery();
   const scrollTracked = { '20': false, '50': false };
+  let gtagLoaded = false;
 
   // Inject gtag.js if GA4 or Google Ads ID is present
   if (CONFIG.ga4MeasurementId || CONFIG.googleAdsId) {
@@ -41,7 +42,8 @@
     document.head.appendChild(gtagScript);
 
     gtagScript.onload = function () {
-      console.log('[Tracking] gtag.js loaded');
+      gtagLoaded = true;
+      console.log('[Tracking] gtag.js loaded successfully.');
 
       gtag('js', new Date());
 
@@ -55,7 +57,7 @@
         gtag('config', CONFIG.googleAdsId);
       }
 
-      // Send test GA4 event to confirm
+      // Test ping to GA4
       if (CONFIG.ga4MeasurementId) {
         console.log('[Tracking] Sending test_event to GA4');
         gtag('event', 'test_event', {
@@ -64,11 +66,16 @@
         });
       }
 
-      waitForPixels(); // Start tracking after gtag is loaded
+      waitForPixels();
+    };
+
+    gtagScript.onerror = function () {
+      console.warn('[Tracking] gtag.js failed to load.');
+      waitForPixels();
     };
   } else {
     console.warn('[Tracking] No GA4 or Google Ads ID provided. Skipping gtag injection.');
-    waitForPixels(); // Still track scroll/clicks if other platforms used
+    waitForPixels();
   }
 
   function pixelsReady() {
@@ -116,6 +123,8 @@
         console.log(`[Tracking] Sending event to GA4: ${eventName}`);
         gtag('event', eventName, data);
       }
+    } else {
+      console.warn(`[Tracking] gtag is not available. Skipping GA4/Ads event: ${eventName}`);
     }
 
     // TikTok
@@ -208,4 +217,3 @@
     }, 500);
   }
 })();
-
