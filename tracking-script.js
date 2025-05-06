@@ -8,9 +8,7 @@
       return {};
     }
 
-    const src = trackingScript.src;
-    const queryString = src.substring(src.indexOf('?') + 1);
-    const params = new URLSearchParams(queryString);
+    const params = new URLSearchParams(trackingScript.src.split('?')[1]);
 
     const config = {
       facebookPixelId: params.get('facebookPixelId'),
@@ -39,21 +37,38 @@
 
     const gtagScript = document.createElement('script');
     gtagScript.async = true;
-    gtagScript.src = `https://www.googletagmanager.com/gtag/js?id=${CONFIG.ga4MeasurementId}`;
-    gtagScript.onload = function () {
-      // Now that gtag.js is loaded, configure GA4 and Ads
-      gtag('js', new Date());
-      gtag('config', CONFIG.ga4MeasurementId);
+    gtagScript.src = `https://www.googletagmanager.com/gtag/js?id=${CONFIG.ga4MeasurementId || CONFIG.googleAdsId}`;
+    document.head.appendChild(gtagScript);
 
-      // If Ads ID is provided, configure that too
+    gtagScript.onload = function () {
+      console.log('[Tracking] gtag.js loaded');
+
+      gtag('js', new Date());
+
+      if (CONFIG.ga4MeasurementId) {
+        console.log('[Tracking] Initializing GA4 config:', CONFIG.ga4MeasurementId);
+        gtag('config', CONFIG.ga4MeasurementId);
+      }
+
       if (CONFIG.googleAdsId) {
+        console.log('[Tracking] Initializing Google Ads config:', CONFIG.googleAdsId);
         gtag('config', CONFIG.googleAdsId);
       }
 
-      console.log('[Tracking] gtag.js loaded and GA4 configured.');
-      waitForPixels(); // Now safe to start scroll/click tracking
+      // Send test GA4 event to confirm
+      if (CONFIG.ga4MeasurementId) {
+        console.log('[Tracking] Sending test_event to GA4');
+        gtag('event', 'test_event', {
+          test_param: 'test_value',
+          page_path: window.location.pathname
+        });
+      }
+
+      waitForPixels(); // Start tracking after gtag is loaded
     };
-    document.head.appendChild(gtagScript);
+  } else {
+    console.warn('[Tracking] No GA4 or Google Ads ID provided. Skipping gtag injection.');
+    waitForPixels(); // Still track scroll/clicks if other platforms used
   }
 
   function pixelsReady() {
@@ -79,10 +94,8 @@
       fbq('trackCustom', eventName, data);
     }
 
-    // Google Ads + GA4
+    // Google Ads
     if (typeof gtag === 'function') {
-      console.log('[Tracking] gtag is available');  // Check if gtag is available
-      // Google Ads
       if (CONFIG.googleAdsId) {
         let conversionId = null;
         if (eventName === 'scroll_20') conversionId = CONFIG.scroll20ConversionId;
@@ -91,6 +104,7 @@
         if (eventName === 'any_cta') conversionId = CONFIG.ctaClickConversionId;
 
         if (conversionId) {
+          console.log(`[Tracking] Sending conversion to Google Ads: ${conversionId}`);
           gtag('event', 'conversion', {
             send_to: `${CONFIG.googleAdsId}/${conversionId}`
           });
@@ -99,7 +113,7 @@
 
       // GA4
       if (CONFIG.ga4MeasurementId) {
-        console.log('[Tracking] Sending event to GA4');
+        console.log(`[Tracking] Sending event to GA4: ${eventName}`);
         gtag('event', eventName, data);
       }
     }
@@ -193,6 +207,5 @@
       }
     }, 500);
   }
-
-  waitForPixels();
 })();
+
