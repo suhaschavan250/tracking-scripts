@@ -1,4 +1,6 @@
 (function () {
+  console.log('[Tracking] Script started');
+
   function getConfigFromQuery() {
     const scripts = document.querySelectorAll('script');
     const trackingScript = Array.from(scripts).find(s => s.src && s.src.includes('tracking-scripts'));
@@ -8,9 +10,10 @@
       return {};
     }
 
-    const params = new URLSearchParams(trackingScript.src.split('?')[1]);
+    const queryString = trackingScript.src.split('?')[1];
+    const params = new URLSearchParams(queryString);
 
-    const config = {
+    return {
       facebookPixelId: params.get('facebookPixelId'),
       googleAdsId: params.get('googleAdsId'),
       scroll20ConversionId: params.get('scroll20ConversionId'),
@@ -21,14 +24,10 @@
       tiktokPixelId: params.get('tiktokPixelId'),
       ctaText: (params.get('ctaText') || "").trim()
     };
-
-    console.log('[Tracking] Config from query:', config);
-    return config;
   }
 
   const CONFIG = getConfigFromQuery();
   const scrollTracked = { '20': false, '50': false };
-  let gtagLoaded = false;
 
   // Inject gtag.js if GA4 or Google Ads ID is present
   if (CONFIG.ga4MeasurementId || CONFIG.googleAdsId) {
@@ -39,43 +38,18 @@
     const gtagScript = document.createElement('script');
     gtagScript.async = true;
     gtagScript.src = `https://www.googletagmanager.com/gtag/js?id=${CONFIG.ga4MeasurementId || CONFIG.googleAdsId}`;
-    document.head.appendChild(gtagScript);
-
+    
     gtagScript.onload = function () {
-      gtagLoaded = true;
-      console.log('[Tracking] gtag.js loaded successfully.');
-
-      gtag('js', new Date());
-
-      if (CONFIG.ga4MeasurementId) {
-        console.log('[Tracking] Initializing GA4 config:', CONFIG.ga4MeasurementId);
-        gtag('config', CONFIG.ga4MeasurementId);
-      }
-
-      if (CONFIG.googleAdsId) {
-        console.log('[Tracking] Initializing Google Ads config:', CONFIG.googleAdsId);
-        gtag('config', CONFIG.googleAdsId);
-      }
-
-      // Test ping to GA4
-      if (CONFIG.ga4MeasurementId) {
-        console.log('[Tracking] Sending test_event to GA4');
-        gtag('event', 'test_event', {
-          test_param: 'test_value',
-          page_path: window.location.pathname
-        });
-      }
-
-      waitForPixels();
+      console.log('[Tracking] gtag.js loaded successfully');
+      if (CONFIG.ga4MeasurementId) gtag('config', CONFIG.ga4MeasurementId);
+      if (CONFIG.googleAdsId) gtag('config', CONFIG.googleAdsId);
     };
 
     gtagScript.onerror = function () {
-      console.warn('[Tracking] gtag.js failed to load.');
-      waitForPixels();
+      console.warn('[Tracking] gtag.js failed to load');
     };
-  } else {
-    console.warn('[Tracking] No GA4 or Google Ads ID provided. Skipping gtag injection.');
-    waitForPixels();
+
+    document.head.appendChild(gtagScript);
   }
 
   function pixelsReady() {
@@ -84,13 +58,6 @@
       typeof gtag === 'function' ||
       typeof ttq === 'function'
     );
-  }
-
-  function getScrollPercent() {
-    const doc = document.documentElement;
-    const scrollTop = window.pageYOffset || doc.scrollTop;
-    const scrollHeight = doc.scrollHeight - doc.clientHeight;
-    return Math.round((scrollTop / scrollHeight) * 100);
   }
 
   function sendToAllPlatforms(eventName, data = {}) {
@@ -102,35 +69,40 @@
     }
 
     // Google Ads
-    if (typeof gtag === 'function') {
-      if (CONFIG.googleAdsId) {
-        let conversionId = null;
-        if (eventName === 'scroll_20') conversionId = CONFIG.scroll20ConversionId;
-        if (eventName === 'scroll_50') conversionId = CONFIG.scroll50ConversionId;
-        if (eventName === 'any_click') conversionId = CONFIG.anyClickConversionId;
-        if (eventName === 'any_cta') conversionId = CONFIG.ctaClickConversionId;
+    if (typeof gtag === 'function' && CONFIG.googleAdsId) {
+      let conversionId = null;
+      if (eventName === 'scroll_20') conversionId = CONFIG.scroll20ConversionId;
+      if (eventName === 'scroll_50') conversionId = CONFIG.scroll50ConversionId;
+      if (eventName === 'any_click') conversionId = CONFIG.anyClickConversionId;
+      if (eventName === 'any_cta') conversionId = CONFIG.ctaClickConversionId;
 
-        if (conversionId) {
-          console.log(`[Tracking] Sending conversion to Google Ads: ${conversionId}`);
-          gtag('event', 'conversion', {
-            send_to: `${CONFIG.googleAdsId}/${conversionId}`
-          });
-        }
+      if (conversionId) {
+        console.log(`[Tracking] Sending Google Ads conversion: ${conversionId}`);
+        gtag('event', 'conversion', {
+          send_to: `${CONFIG.googleAdsId}/${conversionId}`
+        });
       }
+    }
 
-      // GA4
-      if (CONFIG.ga4MeasurementId) {
-        console.log(`[Tracking] Sending event to GA4: ${eventName}`);
-        gtag('event', eventName, data);
-      }
+    // GA4
+    if (typeof gtag === 'function' && CONFIG.ga4MeasurementId) {
+      console.log(`[Tracking] Sending GA4 event: ${eventName}`);
+      gtag('event', eventName, data);
     } else {
-      console.warn(`[Tracking] gtag is not available. Skipping GA4/Ads event: ${eventName}`);
+      console.warn('[Tracking] gtag is not available. Skipping GA4 event.');
     }
 
     // TikTok
     if (typeof ttq === 'function' && CONFIG.tiktokPixelId) {
       ttq.track(eventName, data);
     }
+  }
+
+  function getScrollPercent() {
+    const doc = document.documentElement;
+    const scrollTop = window.pageYOffset || doc.scrollTop;
+    const scrollHeight = doc.scrollHeight - doc.clientHeight;
+    return Math.round((scrollTop / scrollHeight) * 100);
   }
 
   function handleScroll() {
@@ -170,10 +142,6 @@
 
     const clickedNormalized = normalize(clickedText);
     const expected = normalize(CONFIG.ctaText);
-
-    console.log('[Tracking] Clicked Text:', `"${clickedText}"`);
-    console.log('[Tracking] CTA Text:', `"${CONFIG.ctaText}"`);
-    console.log('[Tracking] Normalized Match:', clickedNormalized === expected);
 
     sendToAllPlatforms('any_click', {
       url,
@@ -216,4 +184,6 @@
       }
     }, 500);
   }
+
+  waitForPixels();
 })();
