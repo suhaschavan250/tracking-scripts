@@ -31,6 +31,23 @@
   const CONFIG = getConfigFromQuery();
   const scrollTracked = { '20': false, '50': false };
 
+  // Inject gtag.js if GA4 or Google Ads ID is present
+  if (CONFIG.ga4MeasurementId || CONFIG.googleAdsId) {
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    window.gtag = window.gtag || gtag;
+
+    const baseTagId = CONFIG.ga4MeasurementId || CONFIG.googleAdsId;
+    const gtagScript = document.createElement('script');
+    gtagScript.async = true;
+    gtagScript.src = `https://www.googletagmanager.com/gtag/js?id=${baseTagId}`;
+    document.head.appendChild(gtagScript);
+
+    gtag('js', new Date());
+    if (CONFIG.ga4MeasurementId) gtag('config', CONFIG.ga4MeasurementId);
+    if (CONFIG.googleAdsId) gtag('config', CONFIG.googleAdsId);
+  }
+
   function pixelsReady() {
     return (
       typeof fbq === 'function' ||
@@ -49,26 +66,35 @@
   function sendToAllPlatforms(eventName, data = {}) {
     console.log(`[Tracking] Event: ${eventName}`, data);
 
+    // Facebook
     if (typeof fbq === 'function' && CONFIG.facebookPixelId) {
       fbq('trackCustom', eventName, data);
     }
 
-    if (typeof gtag === 'function' && CONFIG.googleAdsId) {
-      let conversionId = null;
-      if (eventName === 'scroll_20') conversionId = CONFIG.scroll20ConversionId;
-      if (eventName === 'scroll_50') conversionId = CONFIG.scroll50ConversionId;
-      if (eventName === 'any_click') conversionId = CONFIG.anyClickConversionId;
-      if (eventName === 'any_cta') conversionId = CONFIG.ctaClickConversionId;
+    // Google Ads + GA4
+    if (typeof gtag === 'function') {
+      // Google Ads
+      if (CONFIG.googleAdsId) {
+        let conversionId = null;
+        if (eventName === 'scroll_20') conversionId = CONFIG.scroll20ConversionId;
+        if (eventName === 'scroll_50') conversionId = CONFIG.scroll50ConversionId;
+        if (eventName === 'any_click') conversionId = CONFIG.anyClickConversionId;
+        if (eventName === 'any_cta') conversionId = CONFIG.ctaClickConversionId;
 
-      if (conversionId) {
-        gtag('event', 'conversion', { 'send_to': `${CONFIG.googleAdsId}/${conversionId}` });
+        if (conversionId) {
+          gtag('event', 'conversion', {
+            send_to: `${CONFIG.googleAdsId}/${conversionId}`
+          });
+        }
       }
 
+      // GA4
       if (CONFIG.ga4MeasurementId) {
         gtag('event', eventName, data);
       }
     }
 
+    // TikTok
     if (typeof ttq === 'function' && CONFIG.tiktokPixelId) {
       ttq.track(eventName, data);
     }
@@ -132,7 +158,6 @@
   function initListeners() {
     window.addEventListener('scroll', debounceScroll, { passive: true });
     setTimeout(handleScroll, 1000);
-
     document.addEventListener('click', handleClick);
   }
 
