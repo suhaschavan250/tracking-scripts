@@ -10,7 +10,6 @@
 
     const params = new URLSearchParams(trackingScript.src.split('?')[1]);
     const config = {
-      ga4MeasurementId: params.get('ga4Id'),
       ctaText: (params.get('ctaText') || "").trim()
     };
 
@@ -21,21 +20,6 @@
   const CONFIG = getConfigFromQuery();
   const scrollTracked = { '20': false, '50': false };
 
-  // Inject gtag.js if GA4 ID present
-  if (CONFIG.ga4MeasurementId) {
-    window.dataLayer = window.dataLayer || [];
-    function gtag() { dataLayer.push(arguments); }
-    window.gtag = window.gtag || gtag;
-
-    const gtagScript = document.createElement('script');
-    gtagScript.async = true;
-    gtagScript.src = `https://www.googletagmanager.com/gtag/js?id=${CONFIG.ga4MeasurementId}`;
-    document.head.appendChild(gtagScript);
-
-    gtag('js', new Date());
-    gtag('config', CONFIG.ga4MeasurementId);
-  }
-
   function getScrollPercent() {
     const doc = document.documentElement;
     const scrollTop = window.pageYOffset || doc.scrollTop;
@@ -44,11 +28,11 @@
   }
 
   function sendToGA4(eventName, data = {}) {
-    if (typeof gtag === 'function') {
+    if (typeof window.gtag === 'function') {
       console.log(`[GA4] Sending event: ${eventName}`, data);
-      gtag('event', eventName, data);
+      window.gtag('event', eventName, data);
     } else {
-      console.warn('[GA4] gtag is not loaded');
+      console.warn('[GA4] gtag is not available yet');
     }
   }
 
@@ -109,25 +93,17 @@
     document.addEventListener('click', handleClick);
   }
 
-  function startTracking() {
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-      initListeners();
-    } else {
-      window.addEventListener('DOMContentLoaded', initListeners);
-    }
-  }
-
   function waitForGtag() {
     let attempts = 0;
     const interval = setInterval(() => {
-      if (typeof gtag === 'function') {
+      if (typeof window.gtag === 'function') {
         clearInterval(interval);
         console.log('[GA4] gtag detected, starting tracking.');
-        startTracking();
+        initListeners();
       } else if (attempts++ >= 40) {
         clearInterval(interval);
         console.warn('[GA4] gtag not detected after waiting, starting anyway.');
-        startTracking();
+        initListeners();
       }
     }, 500);
   }
