@@ -81,6 +81,7 @@
 
     // Google Ads + GA4
     if (typeof gtag === 'function') {
+      console.log('[Tracking] gtag is available');  // Check if gtag is available
       // Google Ads
       if (CONFIG.googleAdsId) {
         let conversionId = null;
@@ -98,6 +99,7 @@
 
       // GA4
       if (CONFIG.ga4MeasurementId) {
+        console.log('[Tracking] Sending event to GA4');
         gtag('event', eventName, data);
       }
     }
