@@ -31,8 +31,8 @@
   const CONFIG = getConfigFromQuery();
   const scrollTracked = { '20': false, '50': false };
 
-  // Explicitly inject gtag.js using GA4 Measurement ID
-  if (CONFIG.ga4MeasurementId) {
+  // Inject gtag.js if GA4 or Google Ads ID is present
+  if (CONFIG.ga4MeasurementId || CONFIG.googleAdsId) {
     window.dataLayer = window.dataLayer || [];
     function gtag() { dataLayer.push(arguments); }
     window.gtag = window.gtag || gtag;
@@ -40,15 +40,20 @@
     const gtagScript = document.createElement('script');
     gtagScript.async = true;
     gtagScript.src = `https://www.googletagmanager.com/gtag/js?id=${CONFIG.ga4MeasurementId}`;
+    gtagScript.onload = function () {
+      // Now that gtag.js is loaded, configure GA4 and Ads
+      gtag('js', new Date());
+      gtag('config', CONFIG.ga4MeasurementId);
+
+      // If Ads ID is provided, configure that too
+      if (CONFIG.googleAdsId) {
+        gtag('config', CONFIG.googleAdsId);
+      }
+
+      console.log('[Tracking] gtag.js loaded and GA4 configured.');
+      waitForPixels(); // Now safe to start scroll/click tracking
+    };
     document.head.appendChild(gtagScript);
-
-    gtag('js', new Date());
-    gtag('config', CONFIG.ga4MeasurementId);
-  }
-
-  // Also configure Google Ads if provided
-  if (CONFIG.googleAdsId && typeof gtag === 'function') {
-    gtag('config', CONFIG.googleAdsId);
   }
 
   function pixelsReady() {
