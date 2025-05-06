@@ -31,21 +31,24 @@
   const CONFIG = getConfigFromQuery();
   const scrollTracked = { '20': false, '50': false };
 
-  // Inject gtag.js if GA4 or Google Ads ID is present
-  if (CONFIG.ga4MeasurementId || CONFIG.googleAdsId) {
+  // Explicitly inject gtag.js using GA4 Measurement ID
+  if (CONFIG.ga4MeasurementId) {
     window.dataLayer = window.dataLayer || [];
     function gtag() { dataLayer.push(arguments); }
     window.gtag = window.gtag || gtag;
 
-    const baseTagId = CONFIG.ga4MeasurementId || CONFIG.googleAdsId;
     const gtagScript = document.createElement('script');
     gtagScript.async = true;
-    gtagScript.src = `https://www.googletagmanager.com/gtag/js?id=${baseTagId}`;
+    gtagScript.src = `https://www.googletagmanager.com/gtag/js?id=${CONFIG.ga4MeasurementId}`;
     document.head.appendChild(gtagScript);
 
     gtag('js', new Date());
-    if (CONFIG.ga4MeasurementId) gtag('config', CONFIG.ga4MeasurementId);
-    if (CONFIG.googleAdsId) gtag('config', CONFIG.googleAdsId);
+    gtag('config', CONFIG.ga4MeasurementId);
+  }
+
+  // Also configure Google Ads if provided
+  if (CONFIG.googleAdsId && typeof gtag === 'function') {
+    gtag('config', CONFIG.googleAdsId);
   }
 
   function pixelsReady() {
