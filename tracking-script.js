@@ -19,7 +19,7 @@
       scroll50ConversionId: params.get('scroll50ConversionId'),
       anyClickConversionId: params.get('anyClickConversionId'),
       ctaClickConversionId: params.get('ctaClickConversionId'),
-      ga4MeasurementId: params.get('ga4MeasurementId'),
+      ga4MeasurementId: params.get('ga4Id'),
       tiktokPixelId: params.get('tiktokPixelId'),
       ctaText: (params.get('ctaText') || "").trim()
     };
