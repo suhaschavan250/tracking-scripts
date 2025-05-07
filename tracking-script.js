@@ -9,16 +9,22 @@
     }
 
     const params = new URLSearchParams(trackingScript.src.split('?')[1]);
-    const config = {
+    return {
       ctaText: (params.get('ctaText') || "").trim()
     };
-
-    console.log('[Tracking] Config from query:', config);
-    return config;
   }
 
   const CONFIG = getConfigFromQuery();
   const scrollTracked = { '20': false, '50': false };
+
+  function sendToGA4(eventName) {
+    if (typeof window.gtag === 'function') {
+      console.log(`[GA4] Sending event: ${eventName}`);
+      window.gtag('event', eventName);
+    } else {
+      console.warn('[GA4] gtag is not available');
+    }
+  }
 
   function getScrollPercent() {
     const doc = document.documentElement;
@@ -27,25 +33,16 @@
     return Math.round((scrollTop / scrollHeight) * 100);
   }
 
-  function sendToGA4(eventName, data = {}) {
-    if (typeof window.gtag === 'function') {
-      console.log(`[GA4] Sending event: ${eventName}`, data);
-      window.gtag('event', eventName, data);
-    } else {
-      console.warn('[GA4] gtag is not available yet');
-    }
-  }
-
   function handleScroll() {
     const percent = getScrollPercent();
 
     if (!scrollTracked['20'] && percent >= 20) {
-      sendToGA4('scroll_20', { percent, url: window.location.href });
+      sendToGA4('scroll_20');
       scrollTracked['20'] = true;
     }
 
     if (!scrollTracked['50'] && percent >= 50) {
-      sendToGA4('scroll_50', { percent, url: window.location.href });
+      sendToGA4('scroll_50');
       scrollTracked['50'] = true;
     }
 
@@ -69,21 +66,10 @@
 
   function handleClick(event) {
     const clickedText = (event.target.textContent || '').trim();
-    const url = window.location.href;
+    sendToGA4('any_click');
 
-    sendToGA4('any_click', {
-      url,
-      text: clickedText.slice(0, 100)
-    });
-
-    const clickedNormalized = normalize(clickedText);
-    const expected = normalize(CONFIG.ctaText);
-
-    if (clickedNormalized === expected) {
-      sendToGA4('any_cta', {
-        url,
-        text: clickedText.slice(0, 50)
-      });
+    if (normalize(clickedText) === normalize(CONFIG.ctaText)) {
+      sendToGA4('any_cta');
     }
   }
 
