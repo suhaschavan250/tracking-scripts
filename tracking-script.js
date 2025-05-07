@@ -39,6 +39,24 @@
     );
   }
 
+  function isGA4Configured() {
+    const hasGtag = typeof gtag === 'function';
+    const hasGA4Id = !!CONFIG.ga4MeasurementId;
+
+    if (!hasGtag) {
+      console.log('[GA4] gtag is NOT defined.');
+      return false;
+    }
+
+    if (!hasGA4Id) {
+      console.log('[GA4] GA4 Measurement ID not found in config.');
+      return false;
+    }
+
+    console.log('[GA4] gtag is defined and GA4 ID is present:', CONFIG.ga4MeasurementId);
+    return true;
+  }
+
   function getScrollPercent() {
     const doc = document.documentElement;
     const scrollTop = window.pageYOffset || doc.scrollTop;
@@ -49,14 +67,11 @@
   function sendToAllPlatforms(eventName, data = {}) {
     console.log(`[Tracking] Event: ${eventName}`, data);
 
-    // Facebook
     if (typeof fbq === 'function' && CONFIG.facebookPixelId) {
-      console.log('[FB] Sending event:', eventName);
+      console.log(`[Facebook] Sending event: ${eventName}`);
       fbq('trackCustom', eventName, data);
-      console.log('[FB] Sent event:', eventName);
     }
 
-    // Google Ads
     if (typeof gtag === 'function' && CONFIG.googleAdsId) {
       let conversionId = null;
       if (eventName === 'scroll_20') conversionId = CONFIG.scroll20ConversionId;
@@ -65,24 +80,21 @@
       if (eventName === 'any_cta') conversionId = CONFIG.ctaClickConversionId;
 
       if (conversionId) {
-        console.log('[Google Ads] Sending conversion:', conversionId);
+        console.log(`[Google Ads] Sending conversion for event: ${eventName}`);
         gtag('event', 'conversion', { 'send_to': `${CONFIG.googleAdsId}/${conversionId}` });
-        console.log('[Google Ads] Sent conversion for event:', eventName);
       }
     }
 
-    // GA4 — separate check!
-    if (typeof gtag === 'function' && CONFIG.ga4MeasurementId) {
-      console.log('[GA4] Sending event:', eventName);
-      gtag('event', eventName, data);
-      console.log('[GA4] Sent event:', eventName);
+    if (isGA4Configured()) {
+      console.log(`[GA4] Sending event: ${eventName}`);
+      gtag('event', eventName, {}); // Only event name, no data
+    } else {
+      console.log(`[GA4] Not sending event: ${eventName} — GA4 not configured properly.`);
     }
 
-    // TikTok
     if (typeof ttq === 'function' && CONFIG.tiktokPixelId) {
-      console.log('[TikTok] Sending event:', eventName);
+      console.log(`[TikTok] Sending event: ${eventName}`);
       ttq.track(eventName, data);
-      console.log('[TikTok] Sent event:', eventName);
     }
   }
 
@@ -144,7 +156,6 @@
   function initListeners() {
     window.addEventListener('scroll', debounceScroll, { passive: true });
     setTimeout(handleScroll, 1000);
-
     document.addEventListener('click', handleClick);
   }
 
