@@ -29,6 +29,19 @@
   }
 
   const CONFIG = getConfigFromQuery();
+
+  function isGA4Configured() {
+    const isPresent = typeof gtag === 'function';
+    const hasId = !!CONFIG.ga4MeasurementId;
+
+    console.log(`[Tracking] GA4 gtag present: ${isPresent}`);
+    console.log(`[Tracking] GA4 ID present: ${hasId} (${CONFIG.ga4MeasurementId})`);
+
+    return isPresent && hasId;
+  }
+
+  isGA4Configured();
+
   const scrollTracked = { '20': false, '50': false };
 
   function pixelsReady() {
@@ -39,24 +52,6 @@
     );
   }
 
-  function isGA4Configured() {
-    const hasGtag = typeof gtag === 'function';
-    const hasGA4Id = !!CONFIG.ga4MeasurementId;
-
-    if (!hasGtag) {
-      console.log('[GA4] gtag is NOT defined.');
-      return false;
-    }
-
-    if (!hasGA4Id) {
-      console.log('[GA4] GA4 Measurement ID not found in config.');
-      return false;
-    }
-
-    console.log('[GA4] gtag is defined and GA4 ID is present:', CONFIG.ga4MeasurementId);
-    return true;
-  }
-
   function getScrollPercent() {
     const doc = document.documentElement;
     const scrollTop = window.pageYOffset || doc.scrollTop;
@@ -64,14 +59,16 @@
     return Math.round((scrollTop / scrollHeight) * 100);
   }
 
-  function sendToAllPlatforms(eventName, data = {}) {
-    console.log(`[Tracking] Event: ${eventName}`, data);
+  function sendToAllPlatforms(eventName) {
+    console.log(`[Tracking] Event: ${eventName}`);
 
+    // Facebook
     if (typeof fbq === 'function' && CONFIG.facebookPixelId) {
-      console.log(`[Facebook] Sending event: ${eventName}`);
-      fbq('trackCustom', eventName, data);
+      fbq('trackCustom', eventName);
+      console.log(`[Tracking] Facebook event sent: ${eventName}`);
     }
 
+    // Google Ads
     if (typeof gtag === 'function' && CONFIG.googleAdsId) {
       let conversionId = null;
       if (eventName === 'scroll_20') conversionId = CONFIG.scroll20ConversionId;
@@ -80,21 +77,25 @@
       if (eventName === 'any_cta') conversionId = CONFIG.ctaClickConversionId;
 
       if (conversionId) {
-        console.log(`[Google Ads] Sending conversion for event: ${eventName}`);
         gtag('event', 'conversion', { 'send_to': `${CONFIG.googleAdsId}/${conversionId}` });
+        console.log(`[Tracking] Google Ads conversion event sent: ${eventName}`);
       }
     }
 
-    if (isGA4Configured()) {
-      console.log(`[GA4] Sending event: ${eventName}`);
-      gtag('event', eventName, {}); // Only event name, no data
-    } else {
-      console.log(`[GA4] Not sending event: ${eventName} — GA4 not configured properly.`);
+    // GA4
+    if (CONFIG.ga4MeasurementId) {
+      if (typeof gtag === 'function') {
+        gtag('event', eventName);
+        console.log(`[Tracking] GA4 event sent: ${eventName}`);
+      } else {
+        console.log('[Tracking] GA4 gtag is not defined.');
+      }
     }
 
+    // TikTok
     if (typeof ttq === 'function' && CONFIG.tiktokPixelId) {
-      console.log(`[TikTok] Sending event: ${eventName}`);
-      ttq.track(eventName, data);
+      ttq.track(eventName);
+      console.log(`[Tracking] TikTok event sent: ${eventName}`);
     }
   }
 
@@ -102,12 +103,12 @@
     const percent = getScrollPercent();
 
     if (!scrollTracked['20'] && percent >= 20) {
-      sendToAllPlatforms('scroll_20', { percent, url: window.location.href });
+      sendToAllPlatforms('scroll_20');
       scrollTracked['20'] = true;
     }
 
     if (!scrollTracked['50'] && percent >= 50) {
-      sendToAllPlatforms('scroll_50', { percent, url: window.location.href });
+      sendToAllPlatforms('scroll_50');
       scrollTracked['50'] = true;
     }
 
@@ -131,31 +132,20 @@
 
   function handleClick(event) {
     const clickedText = (event.target.textContent || '').trim();
-    const url = window.location.href;
-
     const clickedNormalized = normalize(clickedText);
     const expected = normalize(CONFIG.ctaText);
 
-    console.log('[Tracking] Clicked Text:', `"${clickedText}"`);
-    console.log('[Tracking] CTA Text:', `"${CONFIG.ctaText}"`);
-    console.log('[Tracking] Normalized Match:', clickedNormalized === expected);
-
-    sendToAllPlatforms('any_click', {
-      url,
-      text: clickedText.slice(0, 100)
-    });
+    sendToAllPlatforms('any_click');
 
     if (clickedNormalized === expected) {
-      sendToAllPlatforms('any_cta', {
-        url,
-        text: clickedText.slice(0, 50)
-      });
+      sendToAllPlatforms('any_cta');
     }
   }
 
   function initListeners() {
     window.addEventListener('scroll', debounceScroll, { passive: true });
     setTimeout(handleScroll, 1000);
+
     document.addEventListener('click', handleClick);
   }
 
