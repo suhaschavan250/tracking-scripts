@@ -27,8 +27,9 @@
     console.log('[Tracking] Config from query:', config);
     return config;
   }
-
+   
   const CONFIG = getConfigFromQuery();
+  console.log(CONFIG)
   console.log('[Tracking] Script is running.',CONFIG);
   const scrollTracked = { '20': false, '50': false };
   console.log('[Tracking] Script is running.');
