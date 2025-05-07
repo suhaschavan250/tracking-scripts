@@ -29,27 +29,24 @@
   }
 
   const CONFIG = getConfigFromQuery();
+  const scrollTracked = { '20': false, '50': false };
+
+  function pixelsReady() {
+    return (
+      typeof fbq === 'function' ||
+      typeof window.gtag === 'function' ||
+      typeof ttq === 'function'
+    );
+  }
 
   function isGA4Configured() {
-    const isPresent = typeof gtag === 'function';
+    const isPresent = typeof window.gtag === 'function';
     const hasId = !!CONFIG.ga4MeasurementId;
 
     console.log(`[Tracking] GA4 gtag present: ${isPresent}`);
     console.log(`[Tracking] GA4 ID present: ${hasId} (${CONFIG.ga4MeasurementId})`);
 
     return isPresent && hasId;
-  }
-
-  isGA4Configured();
-
-  const scrollTracked = { '20': false, '50': false };
-
-  function pixelsReady() {
-    return (
-      typeof fbq === 'function' ||
-      typeof gtag === 'function' ||
-      typeof ttq === 'function'
-    );
   }
 
   function getScrollPercent() {
@@ -59,17 +56,17 @@
     return Math.round((scrollTop / scrollHeight) * 100);
   }
 
-  function sendToAllPlatforms(eventName) {
-    console.log(`[Tracking] Event: ${eventName}`);
+  function sendToAllPlatforms(eventName, data = {}) {
+    console.log(`[Tracking] Event: ${eventName}`, data);
 
     // Facebook
     if (typeof fbq === 'function' && CONFIG.facebookPixelId) {
-      fbq('trackCustom', eventName);
+      fbq('trackCustom', eventName, data);
       console.log(`[Tracking] Facebook event sent: ${eventName}`);
     }
 
-    // Google Ads
-    if (typeof gtag === 'function' && CONFIG.googleAdsId) {
+    // Google Ads (conversion)
+    if (typeof window.gtag === 'function' && CONFIG.googleAdsId) {
       let conversionId = null;
       if (eventName === 'scroll_20') conversionId = CONFIG.scroll20ConversionId;
       if (eventName === 'scroll_50') conversionId = CONFIG.scroll50ConversionId;
@@ -77,24 +74,20 @@
       if (eventName === 'any_cta') conversionId = CONFIG.ctaClickConversionId;
 
       if (conversionId) {
-        gtag('event', 'conversion', { 'send_to': `${CONFIG.googleAdsId}/${conversionId}` });
-        console.log(`[Tracking] Google Ads conversion event sent: ${eventName}`);
+        window.gtag('event', 'conversion', { 'send_to': `${CONFIG.googleAdsId}/${conversionId}` });
+        console.log(`[Tracking] Google Ads event sent for: ${eventName}`);
       }
     }
 
     // GA4
-    if (CONFIG.ga4MeasurementId) {
-      if (typeof gtag === 'function') {
-        gtag('event', eventName);
-        console.log(`[Tracking] GA4 event sent: ${eventName}`);
-      } else {
-        console.log('[Tracking] GA4 gtag is not defined.');
-      }
+    if (typeof window.gtag === 'function' && CONFIG.ga4MeasurementId) {
+      window.gtag('event', eventName);
+      console.log(`[Tracking] GA4 event sent: ${eventName}`);
     }
 
     // TikTok
     if (typeof ttq === 'function' && CONFIG.tiktokPixelId) {
-      ttq.track(eventName);
+      ttq.track(eventName, data);
       console.log(`[Tracking] TikTok event sent: ${eventName}`);
     }
   }
@@ -132,8 +125,14 @@
 
   function handleClick(event) {
     const clickedText = (event.target.textContent || '').trim();
+    const url = window.location.href;
+
     const clickedNormalized = normalize(clickedText);
     const expected = normalize(CONFIG.ctaText);
+
+    console.log('[Tracking] Clicked Text:', `"${clickedText}"`);
+    console.log('[Tracking] CTA Text:', `"${CONFIG.ctaText}"`);
+    console.log('[Tracking] Normalized Match:', clickedNormalized === expected);
 
     sendToAllPlatforms('any_click');
 
@@ -145,16 +144,7 @@
   function initListeners() {
     window.addEventListener('scroll', debounceScroll, { passive: true });
     setTimeout(handleScroll, 1000);
-
     document.addEventListener('click', handleClick);
-  }
-
-  function startTracking() {
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-      initListeners();
-    } else {
-      window.addEventListener('DOMContentLoaded', initListeners);
-    }
   }
 
   function waitForPixels() {
@@ -163,13 +153,23 @@
       if (pixelsReady()) {
         clearInterval(interval);
         console.log('[Tracking] Pixels detected, starting tracking.');
+        isGA4Configured(); // GA4 debug check
         startTracking();
       } else if (attempts++ >= 40) {
         clearInterval(interval);
         console.log('[Tracking] Pixels not detected after waiting, starting anyway.');
+        isGA4Configured(); // GA4 debug check
         startTracking();
       }
     }, 500);
+  }
+
+  function startTracking() {
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      initListeners();
+    } else {
+      window.addEventListener('DOMContentLoaded', initListeners);
+    }
   }
 
   waitForPixels();
