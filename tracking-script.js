@@ -24,7 +24,7 @@
       ctaText: (params.get('ctaText') || "").trim()
     };
 
-    console.log('[Tracking] Config from query:', config);
+   
     return config;
     console.log(config);
   }
