@@ -8,22 +8,35 @@
       return {};
     }
 
-    const params = new URLSearchParams(trackingScript.src.split('?')[1]);
-    return {
+    const src = trackingScript.src;
+    const queryString = src.substring(src.indexOf('?') + 1);
+    const params = new URLSearchParams(queryString);
+
+    const config = {
+      facebookPixelId: params.get('facebookPixelId'),
+      googleAdsId: params.get('googleAdsId'),
+      scroll20ConversionId: params.get('scroll20ConversionId'),
+      scroll50ConversionId: params.get('scroll50ConversionId'),
+      anyClickConversionId: params.get('anyClickConversionId'),
+      ctaClickConversionId: params.get('ctaClickConversionId'),
+      ga4MeasurementId: params.get('ga4Id'),
+      tiktokPixelId: params.get('tiktokPixelId'),
       ctaText: (params.get('ctaText') || "").trim()
     };
+
+    console.log('[Tracking] Config from query:', config);
+    return config;
   }
 
   const CONFIG = getConfigFromQuery();
   const scrollTracked = { '20': false, '50': false };
 
-  function sendToGA4(eventName) {
-    if (typeof window.gtag === 'function') {
-      console.log(`[GA4] Sending event: ${eventName}`);
-      window.gtag('event', eventName);
-    } else {
-      console.warn('[GA4] gtag is not available');
-    }
+  function pixelsReady() {
+    return (
+      typeof fbq === 'function' ||
+      typeof gtag === 'function' ||
+      typeof ttq === 'function'
+    );
   }
 
   function getScrollPercent() {
@@ -33,16 +46,48 @@
     return Math.round((scrollTop / scrollHeight) * 100);
   }
 
+  function sendToAllPlatforms(eventName, data = {}) {
+    console.log(`[Tracking] Event: ${eventName}`, data);
+
+    // Facebook
+    if (typeof fbq === 'function' && CONFIG.facebookPixelId) {
+      fbq('trackCustom', eventName, data);
+    }
+
+    // Google Ads
+    if (typeof gtag === 'function' && CONFIG.googleAdsId) {
+      let conversionId = null;
+      if (eventName === 'scroll_20') conversionId = CONFIG.scroll20ConversionId;
+      if (eventName === 'scroll_50') conversionId = CONFIG.scroll50ConversionId;
+      if (eventName === 'any_click') conversionId = CONFIG.anyClickConversionId;
+      if (eventName === 'any_cta') conversionId = CONFIG.ctaClickConversionId;
+
+      if (conversionId) {
+        gtag('event', 'conversion', { 'send_to': `${CONFIG.googleAdsId}/${conversionId}` });
+      }
+
+      // ✅ GA4: Only send event name (no parameters)
+      if (CONFIG.ga4MeasurementId) {
+        gtag('event', eventName);
+      }
+    }
+
+    // TikTok
+    if (typeof ttq === 'function' && CONFIG.tiktokPixelId) {
+      ttq.track(eventName, data);
+    }
+  }
+
   function handleScroll() {
     const percent = getScrollPercent();
 
     if (!scrollTracked['20'] && percent >= 20) {
-      sendToGA4('scroll_20');
+      sendToAllPlatforms('scroll_20', { percent, url: window.location.href });
       scrollTracked['20'] = true;
     }
 
     if (!scrollTracked['50'] && percent >= 50) {
-      sendToGA4('scroll_50');
+      sendToAllPlatforms('scroll_50', { percent, url: window.location.href });
       scrollTracked['50'] = true;
     }
 
@@ -66,10 +111,25 @@
 
   function handleClick(event) {
     const clickedText = (event.target.textContent || '').trim();
-    sendToGA4('any_click');
+    const url = window.location.href;
 
-    if (normalize(clickedText) === normalize(CONFIG.ctaText)) {
-      sendToGA4('any_cta');
+    const clickedNormalized = normalize(clickedText);
+    const expected = normalize(CONFIG.ctaText);
+
+    console.log('[Tracking] Clicked Text:', `"${clickedText}"`);
+    console.log('[Tracking] CTA Text:', `"${CONFIG.ctaText}"`);
+    console.log('[Tracking] Normalized Match:', clickedNormalized === expected);
+
+    sendToAllPlatforms('any_click', {
+      url,
+      text: clickedText.slice(0, 100)
+    });
+
+    if (clickedNormalized === expected) {
+      sendToAllPlatforms('any_cta', {
+        url,
+        text: clickedText.slice(0, 50)
+      });
     }
   }
 
@@ -79,20 +139,28 @@
     document.addEventListener('click', handleClick);
   }
 
-  function waitForGtag() {
+  function startTracking() {
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      initListeners();
+    } else {
+      window.addEventListener('DOMContentLoaded', initListeners);
+    }
+  }
+
+  function waitForPixels() {
     let attempts = 0;
     const interval = setInterval(() => {
-      if (typeof window.gtag === 'function') {
+      if (pixelsReady()) {
         clearInterval(interval);
-        console.log('[GA4] gtag detected, starting tracking.');
-        initListeners();
+        console.log('[Tracking] Pixels detected, starting tracking.');
+        startTracking();
       } else if (attempts++ >= 40) {
         clearInterval(interval);
-        console.warn('[GA4] gtag not detected after waiting, starting anyway.');
-        initListeners();
+        console.warn('[Tracking] Pixels not detected after waiting, starting anyway.');
+        startTracking();
       }
     }, 500);
   }
 
-  waitForGtag();
+  waitForPixels();
 })();
