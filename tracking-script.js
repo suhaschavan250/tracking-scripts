@@ -49,10 +49,11 @@
   function sendToAllPlatforms(eventName, data = {}) {
     console.log(`[Tracking] Event: ${eventName}`, data);
 
-    // Facebook Pixel
+    // Facebook
     if (typeof fbq === 'function' && CONFIG.facebookPixelId) {
+      console.log('[FB] Sending event:', eventName);
       fbq('trackCustom', eventName, data);
-      console.log(`[FB] Sent event: ${eventName}`);
+      console.log('[FB] Sent event:', eventName);
     }
 
     // Google Ads
@@ -64,28 +65,24 @@
       if (eventName === 'any_cta') conversionId = CONFIG.ctaClickConversionId;
 
       if (conversionId) {
+        console.log('[Google Ads] Sending conversion:', conversionId);
         gtag('event', 'conversion', { 'send_to': `${CONFIG.googleAdsId}/${conversionId}` });
-        console.log(`[Google Ads] Sent conversion for: ${eventName}`);
+        console.log('[Google Ads] Sent conversion for event:', eventName);
       }
     }
 
-    // GA4
-    if (CONFIG.ga4MeasurementId) {
-      console.log('[GA4] Attempting to send:', eventName);
-      console.log('[GA4] gtag type:', typeof gtag);
-
-      if (typeof gtag === 'function') {
-        gtag('event', eventName);
-        console.log(`[GA4] Sent event: ${eventName}`);
-      } else {
-        console.log(`[GA4] gtag is not a function, event NOT sent: ${eventName}`);
-      }
+    // GA4 — separate check!
+    if (typeof gtag === 'function' && CONFIG.ga4MeasurementId) {
+      console.log('[GA4] Sending event:', eventName);
+      gtag('event', eventName, data);
+      console.log('[GA4] Sent event:', eventName);
     }
 
     // TikTok
     if (typeof ttq === 'function' && CONFIG.tiktokPixelId) {
+      console.log('[TikTok] Sending event:', eventName);
       ttq.track(eventName, data);
-      console.log(`[TikTok] Sent event: ${eventName}`);
+      console.log('[TikTok] Sent event:', eventName);
     }
   }
 
