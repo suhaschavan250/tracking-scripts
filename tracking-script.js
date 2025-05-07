@@ -49,10 +49,10 @@
   function sendToAllPlatforms(eventName, data = {}) {
     console.log(`[Tracking] Event: ${eventName}`, data);
 
-    // Facebook
+    // Facebook Pixel
     if (typeof fbq === 'function' && CONFIG.facebookPixelId) {
       fbq('trackCustom', eventName, data);
-      console.log(`[Facebook] Sent event: ${eventName}`);
+      console.log(`[FB] Sent event: ${eventName}`);
     }
 
     // Google Ads
@@ -65,17 +65,20 @@
 
       if (conversionId) {
         gtag('event', 'conversion', { 'send_to': `${CONFIG.googleAdsId}/${conversionId}` });
-        console.log(`[Google Ads] Sent conversion event for: ${eventName}`);
+        console.log(`[Google Ads] Sent conversion for: ${eventName}`);
       }
     }
 
     // GA4
     if (CONFIG.ga4MeasurementId) {
+      console.log('[GA4] Attempting to send:', eventName);
+      console.log('[GA4] gtag type:', typeof gtag);
+
       if (typeof gtag === 'function') {
         gtag('event', eventName);
         console.log(`[GA4] Sent event: ${eventName}`);
       } else {
-        console.log(`[GA4] gtag not available for event: ${eventName}`);
+        console.log(`[GA4] gtag is not a function, event NOT sent: ${eventName}`);
       }
     }
 
