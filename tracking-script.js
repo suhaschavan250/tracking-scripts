@@ -30,7 +30,13 @@
 
   const CONFIG = getConfigFromQuery();
   const scrollTracked = { '20': false, '50': false };
-
+  if (CONFIG.ga4MeasurementId && typeof gtag === 'function') {
+    console.log('[Tracking] GA4 is properly configured.');
+    return true;
+  } else {
+    console.log('[Tracking] GA4 is NOT properly configured.');
+    return false;
+  }
   function isGA4Configured() {
     if (CONFIG.ga4MeasurementId && typeof gtag === 'function') {
       console.log('[Tracking] GA4 is properly configured.');
