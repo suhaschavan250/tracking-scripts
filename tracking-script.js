@@ -26,8 +26,9 @@
 
     console.log('[Tracking] Config from query:', config);
     return config;
+    console.log(config);
   }
-   
+   console.log(getConfigFromQuery())
   const CONFIG = getConfigFromQuery();
   console.log(CONFIG)
   console.log('[Tracking] Script is running.',CONFIG);
