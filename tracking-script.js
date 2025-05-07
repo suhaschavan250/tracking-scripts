@@ -4,7 +4,7 @@
     const trackingScript = Array.from(scripts).find(s => s.src && s.src.includes('tracking-scripts'));
 
     if (!trackingScript || !trackingScript.src.includes('?')) {
-      console.warn('[Tracking] Tracking script not found or missing query params.');
+      console.log('[Tracking] Tracking script not found or missing query params.');
       return {};
     }
 
@@ -52,6 +52,7 @@
     // Facebook
     if (typeof fbq === 'function' && CONFIG.facebookPixelId) {
       fbq('trackCustom', eventName, data);
+      console.log(`[Facebook] Sent event: ${eventName}`);
     }
 
     // Google Ads
@@ -64,17 +65,24 @@
 
       if (conversionId) {
         gtag('event', 'conversion', { 'send_to': `${CONFIG.googleAdsId}/${conversionId}` });
+        console.log(`[Google Ads] Sent conversion event for: ${eventName}`);
       }
+    }
 
-      // ✅ GA4: Only send event name (no parameters)
-      if (CONFIG.ga4MeasurementId) {
+    // GA4
+    if (CONFIG.ga4MeasurementId) {
+      if (typeof gtag === 'function') {
         gtag('event', eventName);
+        console.log(`[GA4] Sent event: ${eventName}`);
+      } else {
+        console.log(`[GA4] gtag not available for event: ${eventName}`);
       }
     }
 
     // TikTok
     if (typeof ttq === 'function' && CONFIG.tiktokPixelId) {
       ttq.track(eventName, data);
+      console.log(`[TikTok] Sent event: ${eventName}`);
     }
   }
 
@@ -136,6 +144,7 @@
   function initListeners() {
     window.addEventListener('scroll', debounceScroll, { passive: true });
     setTimeout(handleScroll, 1000);
+
     document.addEventListener('click', handleClick);
   }
 
@@ -156,7 +165,7 @@
         startTracking();
       } else if (attempts++ >= 40) {
         clearInterval(interval);
-        console.warn('[Tracking] Pixels not detected after waiting, starting anyway.');
+        console.log('[Tracking] Pixels not detected after waiting, starting anyway.');
         startTracking();
       }
     }, 500);
