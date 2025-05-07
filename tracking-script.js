@@ -29,7 +29,9 @@
   }
 
   const CONFIG = getConfigFromQuery();
+  console.log('[Tracking] Script is running.',CONFIG);
   const scrollTracked = { '20': false, '50': false };
+  console.log('[Tracking] Script is running.');
   if (CONFIG.ga4MeasurementId && typeof gtag === 'function') {
     console.log('[Tracking] GA4 is properly configured.');
     return true;
